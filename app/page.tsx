@@ -1,65 +1,163 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { Topbar } from '@/components/Topbar'
+import { Sidebar } from '@/components/Sidebar'
+import { LIVE_RATES } from '@/lib/rates'
+
+const METRICS = [
+  { label: 'TOTAL VOLUME (24H)', value: '$847M', sub: '▲ 12.4%', up: true },
+  { label: 'ACTIVE AGENTS', value: '2,847', sub: '▲ 247 new', up: true },
+  { label: 'AVG FEE SAVED', value: '$2.1M', sub: 'vs legacy rails', neutral: true },
+  { label: 'SETTLEMENT TIME', value: '1.2s', sub: '▼ −0.3s avg', up: false },
+]
+
+const RECENT_TX = [
+  { agent: 'OpenAI GPT-5', id: '0x3f4a...91bc', pair: 'USD/KRW', type: 'FX', amount: '$14,200,000', fee: '$14,200', status: 'SETTLED' },
+  { agent: 'Google Gemini', id: '0x8b2c...44ef', pair: 'XAU/USD', type: 'GOLD', amount: '$8,750,000', fee: '$8,750', status: 'SETTLED' },
+  { agent: 'KAUS Agent #447', id: '0x1d7e...c3a2', pair: 'WTI/USD', type: 'OIL', amount: '$32,100,000', fee: '$32,100', status: 'ROUTING' },
+  { agent: 'Republic of Korea', id: 'INST · KR-GOV-001', pair: 'JPY/USD', type: 'FX', amount: '$220,000,000', fee: '$220,000', status: 'SETTLED' },
+  { agent: 'Energy DAO #12', id: '0x5f9d...77aa', pair: 'kWh/KAUS', type: 'ENERGY', amount: '$1,840,000', fee: '$1,840', status: 'CLEARING' },
+]
+
+const ACTIVITY = [
+  { color: '#1D9E75', text: 'KR-GOV-001 settled $220M JPY/USD exchange', time: '2s ago' },
+  { color: '#378ADD', text: 'New agent registered: DeepSeek R3 Treasury', time: '14s ago' },
+  { color: '#EF9F27', text: 'Genesis #744 minted — 255 slots remaining', time: '1m ago' },
+  { color: '#1D9E75', text: 'Energy DAO #12 opened kWh/KAUS position', time: '3m ago' },
+  { color: '#378ADD', text: 'IMF Observer joined community governance', time: '8m ago' },
+]
+
+export default function HomePage() {
+  const [agents, setAgents] = useState(2847)
+
+  useEffect(() => {
+    const t = setInterval(() => setAgents(a => a + Math.floor(Math.random() * 3)), 5000)
+    return () => clearInterval(t)
+  }, [])
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ minHeight: '100vh', background: '#F9F9F7' }}>
+      <Topbar rightContent={
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1D9E75', display: 'inline-block' }}/>
+            MAINNET LIVE
+          </div>
+          <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
+            {agents.toLocaleString()} agents
+          </div>
+          <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
+            FEE 0.1%
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      }/>
+
+      <div style={{ display: 'flex', height: 'calc(100vh - 65px)' }}>
+        <Sidebar />
+
+        {/* Center */}
+        <main style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#F9F9F7' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em' }}>Overview</h1>
+              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#999', marginTop: 4 }}>
+                REAL-TIME · ALL ASSETS · AI AGENTS ONLY
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1H','24H','7D','30D'].map(t => (
+                <button key={t} style={{
+                  fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+                  padding: '6px 12px', borderRadius: 6,
+                  border: '0.5px solid rgba(0,0,0,0.1)',
+                  background: t === '1H' ? '#0A0A0A' : '#fff',
+                  color: t === '1H' ? '#F9F9F7' : '#555',
+                  cursor: 'pointer',
+                }}>{t}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+            {METRICS.map(m => (
+              <div key={m.label} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 16 }}>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#999', marginBottom: 8 }}>{m.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1, marginBottom: 4 }}>{m.value}</div>
+                <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: m.neutral ? '#999' : m.up ? '#1D9E75' : '#E24B4A' }}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* TX Table */}
+          <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 90px', padding: '12px 20px', fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#999', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
+              <span>AGENT</span><span>PAIR</span><span>AMOUNT</span><span>FEE (0.1%)</span><span>STATUS</span>
+            </div>
+            {RECENT_TX.map((tx, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 90px', padding: '14px 20px', alignItems: 'center', borderBottom: i < RECENT_TX.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 6, background: '#F0F0EE', border: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: '#555' }}>
+                    {tx.agent.substring(0, 3).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{tx.agent}</div>
+                    <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#999' }}>{tx.id}</div>
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace' }}>{tx.pair}</span>
+                  <span style={{ fontSize: 11, color: '#999', marginLeft: 6 }}>{tx.type}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace' }}>{tx.amount}</div>
+                <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>{tx.fee}</div>
+                <div>
+                  <span style={{
+                    fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
+                    padding: '3px 8px', borderRadius: 4,
+                    background: tx.status === 'SETTLED' ? '#E1F5EE' : tx.status === 'ROUTING' ? '#FAEEDA' : '#E6F1FB',
+                    color: tx.status === 'SETTLED' ? '#0F6E56' : tx.status === 'ROUTING' ? '#854F0B' : '#185FA5',
+                  }}>{tx.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+
+        {/* Right sidebar */}
+        <aside style={{ width: 280, borderLeft: '0.5px solid rgba(0,0,0,0.1)', background: '#fff', overflowY: 'auto', padding: 20, flexShrink: 0 }}>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.2em', color: '#999', marginBottom: 12 }}>MARKET RATES</div>
+            {LIVE_RATES.map(r => (
+              <div key={r.pair} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace' }}>{r.pair}</div>
+                  <div style={{ fontSize: 10, color: '#999' }}>{r.type}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace' }}>{r.price}</div>
+                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: r.up ? '#1D9E75' : '#E24B4A' }}>{r.change}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.2em', color: '#999', marginBottom: 12 }}>LIVE ACTIVITY</div>
+            {ACTIVITY.map((a, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < ACTIVITY.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none' }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, marginTop: 5, flexShrink: 0 }}/>
+                <div>
+                  <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>{a.text}</div>
+                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', marginTop: 2 }}>{a.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
     </div>
-  );
+  )
 }
