@@ -11,9 +11,7 @@ interface PlatformStats {
   volume_24h: number
 }
 
-const KAUS_PRICE_USDC = 1.00 // $1.00 초기 가격
-const TREASURY_ADDRESS    = '0xAD23ce8631a88a0E404a65717ae2DBFEfC035349'
-const FEE_COLLECTOR       = '0xAD23ce8631a88a0E404a65717ae2DBFEfC035349' // USD/KAUS (updated by oracle)
+const KAUS_PRICE_USDC = 1.847 // USD/KAUS (updated by oracle)
 const CHAIN_ID = 137 // Polygon Mainnet
 const CHAIN_ID_HEX = '0x89'
 

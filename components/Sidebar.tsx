@@ -18,6 +18,8 @@ const NAV = [
   { group: 'DATA & AI', items: [
     { href: '/data',       label: 'INTELLIGENCE',  badge: 'NEW' },
     { href: '/connect',    label: 'CONNECT AGENT', badge: 'SDK' },
+    { href: '/tokenomics', label: 'TOKENOMICS' },
+    { href: '/buy-kaus',   label: 'BUY KAUS',      badge: '\$' },
     { href: '/api/rates',  label: 'PRICE ORACLE',  badge: 'API' },
     { href: '/api/stats',  label: 'PLATFORM STATS',badge: 'API' },
   ]},

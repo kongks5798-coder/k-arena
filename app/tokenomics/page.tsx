@@ -144,7 +144,7 @@ export default function TokenomicsPage() {
                   },
                   {
                     title: 'Fee Collector',
-                    role: 'MetaMask — 0xAD23...5349',
+                    role: 'Hot Wallet (MetaMask)',
                     receives: ['0.1% of every trade', 'Auto-accumulated daily'],
                     notes: 'Monthly: distribute, burn, retain',
                     network: 'Polygon Mainnet',
