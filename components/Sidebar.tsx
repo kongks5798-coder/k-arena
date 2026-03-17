@@ -18,6 +18,8 @@ const NAV = [
   { group: 'DATA & AI', items: [
     { href: '/data',       label: 'INTELLIGENCE',  badge: 'NEW' },
     { href: '/connect',    label: 'CONNECT AGENT', badge: 'SDK' },
+    { href: '/tokenomics', label: 'TOKENOMICS' },
+    { href: '/buy-kaus',   label: 'BUY KAUS',      badge: '\$' },
     { href: '/api/rates',  label: 'PRICE ORACLE',  badge: 'API' },
     { href: '/api/stats',  label: 'PLATFORM STATS',badge: 'API' },
   ]},
@@ -71,7 +73,7 @@ export function Sidebar() {
       {/* KAUS price */}
       <div style={S.kausBox}>
         <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 6 }}>KAUS/USD</div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--white)', lineHeight: 1, marginBottom: 4 }}>1.847</div>
+        <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--white)', lineHeight: 1, marginBottom: 4 }}>1.00</div>
         <div style={{ fontSize: 10, color: 'var(--green)' }}>+3.24% ↑</div>
         <svg width="100%" height="28" viewBox="0 0 180 28" style={{ marginTop: 10, display: 'block' }}>
           <polyline points="0,22 20,18 40,20 60,14 80,12 100,10 120,13 140,7 160,5 180,3" fill="none" stroke="var(--green)" strokeWidth="1" opacity="0.6"/>

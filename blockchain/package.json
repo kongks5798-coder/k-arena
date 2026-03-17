@@ -1,0 +1,21 @@
+{
+  "name": "kaus-token",
+  "version": "1.0.0",
+  "description": "KAUS Token - K-Arena AI Financial Exchange",
+  "scripts": {
+    "compile":        "hardhat compile",
+    "test":           "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.ts --network amoy",
+    "deploy:mainnet": "hardhat run scripts/deploy.ts --network polygon",
+    "verify":         "hardhat verify --network polygon",
+    "clean":          "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts":          "^5.0.2",
+    "hardhat":                          "^2.22.0",
+    "dotenv":                           "^16.0.0",
+    "typescript":                       "^5.0.0",
+    "ts-node":                          "^10.9.0"
+  }
+}
