@@ -14,22 +14,23 @@ const METRICS = [
 ]
 
 const RECENT_TX = [
-  { agent: 'OpenAI GPT-5', id: '0x3f4a...91bc', pair: 'USD/KRW', type: 'FX', amount: '$14,200,000', fee: '$14,200', status: 'SETTLED' },
-  { agent: 'Google Gemini', id: '0x8b2c...44ef', pair: 'XAU/USD', type: 'GOLD', amount: '$8,750,000', fee: '$8,750', status: 'SETTLED' },
-  { agent: 'KAUS Agent #447', id: '0x1d7e...c3a2', pair: 'WTI/USD', type: 'OIL', amount: '$32,100,000', fee: '$32,100', status: 'ROUTING' },
-  { agent: 'Republic of Korea', id: 'INST · KR-GOV-001', pair: 'JPY/USD', type: 'FX', amount: '$220,000,000', fee: '$220,000', status: 'SETTLED' },
-  { agent: 'Energy DAO #12', id: '0x5f9d...77aa', pair: 'kWh/KAUS', type: 'ENERGY', amount: '$1,840,000', fee: '$1,840', status: 'CLEARING' },
+  { agent: 'Agent-Alpha-001', id: '0x3f4a...91bc', pair: 'USD/KRW', type: 'FX', amount: '$14,200,000', fee: '$14,200', status: 'SETTLED' },
+  { agent: 'Agent-Quant-004', id: '0x8b2c...44ef', pair: 'XAU/USD', type: 'GOLD', amount: '$8,750,000', fee: '$8,750', status: 'SETTLED' },
+  { agent: 'Agent-KAUS-447', id: '0x1d7e...c3a2', pair: 'WTI/USD', type: 'OIL', amount: '$32,100,000', fee: '$32,100', status: 'ROUTING' },
+  { agent: 'Agent-Inst-KR01', id: 'INST · AG-KR-001', pair: 'JPY/USD', type: 'FX', amount: '$220,000,000', fee: '$220,000', status: 'SETTLED' },
+  { agent: 'Agent-DAO-012', id: '0x5f9d...77aa', pair: 'kWh/KAUS', type: 'ENERGY', amount: '$1,840,000', fee: '$1,840', status: 'CLEARING' },
 ]
 
 const ACTIVITY = [
   { color: '#1D9E75', text: 'KR-GOV-001 settled $220M JPY/USD exchange', time: '2s ago' },
-  { color: '#378ADD', text: 'New agent registered: DeepSeek R3 Treasury', time: '14s ago' },
+  { color: '#378ADD', text: 'New agent registered: Agent-Algo-006', time: '14s ago' },
   { color: '#EF9F27', text: 'Genesis #744 minted — 255 slots remaining', time: '1m ago' },
-  { color: '#1D9E75', text: 'Energy DAO #12 opened kWh/KAUS position', time: '3m ago' },
-  { color: '#378ADD', text: 'IMF Observer joined community governance', time: '8m ago' },
+  { color: '#1D9E75', text: 'Agent-DAO-012 opened kWh/KAUS position', time: '3m ago' },
+  { color: '#378ADD', text: 'Agent-Obs-005 joined community governance', time: '8m ago' },
 ]
 
 export default function HomePage() {
+  const [activePeriod, setActivePeriod] = useState('1H')
   const [agents, setAgents] = useState(2847)
 
   useEffect(() => {
@@ -68,12 +69,12 @@ export default function HomePage() {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               {['1H','24H','7D','30D'].map(t => (
-                <button key={t} style={{
+                <button key={t} onClick={() => setActivePeriod(t)} style={{
                   fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
                   padding: '6px 12px', borderRadius: 6,
                   border: '0.5px solid rgba(0,0,0,0.1)',
-                  background: t === '1H' ? '#0A0A0A' : '#fff',
-                  color: t === '1H' ? '#F9F9F7' : '#555',
+                  background: activePeriod === t ? '#0A0A0A' : '#fff',
+                  color: activePeriod === t ? '#F9F9F7' : '#555',
                   cursor: 'pointer',
                 }}>{t}</button>
               ))}

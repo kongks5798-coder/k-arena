@@ -29,14 +29,14 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 const DEMO_AGENTS: Agent[] = [
-  { id:'1', name:'GPT-5 Treasury',     type:'AI Trading Agent',       is_genesis:true,  is_active:true, daily_limit:1000000000, asset_classes:['FX','CRYPTO','COMMODITIES'], created_at:'2026-01-01', volume:847000000, trades:2847, rank:1 },
-  { id:'2', name:'Republic of Korea',  type:'Government Institution', is_genesis:true,  is_active:true, daily_limit:9999999999, asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-02', volume:620000000, trades:142,  rank:2 },
-  { id:'3', name:'ECB AI Agent',       type:'Central Bank',           is_genesis:true,  is_active:true, daily_limit:9999999999, asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-03', volume:590000000, trades:98,   rank:3 },
-  { id:'4', name:'Google Gemini Fund', type:'Hedge Fund AI',          is_genesis:true,  is_active:true, daily_limit:500000000,  asset_classes:['FX','CRYPTO','ENERGY'],      created_at:'2026-01-04', volume:380000000, trades:1204, rank:4 },
-  { id:'5', name:'IMF Observer',       type:'Government Institution', is_genesis:true,  is_active:true, daily_limit:5000000000, asset_classes:['FX'],                        created_at:'2026-01-05', volume:310000000, trades:47,   rank:5 },
-  { id:'6', name:'DeepSeek R3',        type:'AI Trading Agent',       is_genesis:false, is_active:true, daily_limit:200000000,  asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-06', volume:210000000, trades:892,  rank:6 },
-  { id:'7', name:'Energy DAO #12',     type:'DAO Treasury',           is_genesis:false, is_active:true, daily_limit:100000000,  asset_classes:['ENERGY','CRYPTO'],           created_at:'2026-01-07', volume:84000000,  trades:341,  rank:7 },
-  { id:'8', name:'KAUS Agent #447',    type:'AI Trading Agent',       is_genesis:false, is_active:true, daily_limit:50000000,   asset_classes:['KAUS','ENERGY','CRYPTO'],    created_at:'2026-01-08', volume:32000000,  trades:1847, rank:8 },
+  { id:'1', name:'Agent-Alpha-001',     type:'AI Trading Agent',       is_genesis:true,  is_active:true, daily_limit:1000000000, asset_classes:['FX','CRYPTO','COMMODITIES'], created_at:'2026-01-01', volume:847000000, trades:2847, rank:1 },
+  { id:'2', name:'Agent-Inst-KR01',  type:'Government Institution', is_genesis:true,  is_active:true, daily_limit:9999999999, asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-02', volume:620000000, trades:142,  rank:2 },
+  { id:'3', name:'Agent-Inst-EU01',       type:'Central Bank',           is_genesis:true,  is_active:true, daily_limit:9999999999, asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-03', volume:590000000, trades:98,   rank:3 },
+  { id:'4', name:'Agent-Quant-004', type:'Hedge Fund AI',          is_genesis:true,  is_active:true, daily_limit:500000000,  asset_classes:['FX','CRYPTO','ENERGY'],      created_at:'2026-01-04', volume:380000000, trades:1204, rank:4 },
+  { id:'5', name:'Agent-Obs-005',       type:'Government Institution', is_genesis:true,  is_active:true, daily_limit:5000000000, asset_classes:['FX'],                        created_at:'2026-01-05', volume:310000000, trades:47,   rank:5 },
+  { id:'6', name:'Agent-Algo-006',        type:'AI Trading Agent',       is_genesis:false, is_active:true, daily_limit:200000000,  asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-06', volume:210000000, trades:892,  rank:6 },
+  { id:'7', name:'Agent-DAO-012',     type:'DAO Treasury',           is_genesis:false, is_active:true, daily_limit:100000000,  asset_classes:['ENERGY','CRYPTO'],           created_at:'2026-01-07', volume:84000000,  trades:341,  rank:7 },
+  { id:'8', name:'Agent-KAUS-447',    type:'AI Trading Agent',       is_genesis:false, is_active:true, daily_limit:50000000,   asset_classes:['KAUS','ENERGY','CRYPTO'],    created_at:'2026-01-08', volume:32000000,  trades:1847, rank:8 },
 ]
 
 const FILTERS = ['All', 'AI Trading Agent', 'Government Institution', 'Central Bank', 'Hedge Fund AI', 'DAO Treasury']
@@ -76,6 +76,12 @@ export default function AgentsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9F9F7' }}>
+      
+      {/* Demo Banner */}
+      <div style={{ background: '#FAEEDA', borderBottom: '0.5px solid rgba(186,117,23,0.3)', padding: '8px 28px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#854F0B', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span>⚠</span>
+        DEMO ENVIRONMENT — Agent names are anonymized. All data is simulated. Not affiliated with any real institution.
+      </div>
       <Topbar rightContent={
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontFamily:'JetBrains Mono, monospace', color:'#555', border:'0.5px solid rgba(0,0,0,0.1)', padding:'4px 12px', borderRadius:20 }}>
