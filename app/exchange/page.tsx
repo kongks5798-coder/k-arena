@@ -12,6 +12,7 @@ export default function ExchangePage() {
   const [from, setFrom] = useState('USD')
   const [to, setTo] = useState('KRW')
   const [amount, setAmount] = useState(1_000_000)
+  const [activePeriod, setActivePeriod] = useState('24H')
 
   const rate = getRate(from, to)
   const output = amount * rate

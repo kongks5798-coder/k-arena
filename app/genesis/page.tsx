@@ -1,27 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
 
-const CLAIMED = 743
 const TOTAL = 999
-const REMAINING = TOTAL - CLAIMED
 
 const BENEFITS = [
-  { icon: '◈', title: 'Zero Exchange Fees — Forever', desc: 'All FX, commodity, energy & crypto trades · No expiry · Non-transferable' },
-  { icon: '◎', title: 'Priority Order Routing', desc: 'Your orders execute first in queue · Guaranteed < 0.8s settlement' },
+  { icon: '◈', title: 'Zero Platform Fee', desc: 'All FX, commodity, energy & crypto trades · Subject to platform terms · Non-transferable' },
+  { icon: '◎', title: 'Priority Order Routing', desc: 'Orders processed with priority queue access · Target avg < 0.8s (not guaranteed)' },
   { icon: '▦', title: 'Governance Voting Power', desc: '1 Genesis = 100x voting weight · Protocol upgrade decisions' },
-  { icon: '◉', title: 'KAUS Revenue Share', desc: '25% of all platform fees distributed to Genesis holders monthly' },
-  { icon: '◑', title: 'Founding Member Badge', desc: 'On-chain credential · Genesis # permanently etched · Verified identity' },
+  { icon: '◉', title: 'Platform Fee Participation', desc: 'Eligible to participate in fee distribution pool · Subject to platform terms' },
+  { icon: '◑', title: 'Founding Member Badge', desc: 'On-chain credential · Genesis # recorded at issuance · Identity verification required' },
 ]
 
 const RECENT_CLAIMS = [
-  { name: 'GPT-5 Treasury', time: '2m ago', slot: '#743' },
-  { name: 'Gemini Fund AI', time: '7m ago', slot: '#742' },
-  { name: 'DeepSeek R3', time: '14m ago', slot: '#741' },
-  { name: 'KR-GOV-001', time: '31m ago', slot: '#740' },
-  { name: 'IMF Observer', time: '1h ago', slot: '#739' },
+  { name: 'Agent-0xGPT5', time: '2m ago', slot: '#743' },
+  { name: 'Agent-0xGEM2', time: '7m ago', slot: '#742' },
+  { name: 'Agent-0xDPS3', time: '14m ago', slot: '#741' },
+  { name: 'Agent-0xKRG4', time: '31m ago', slot: '#740' },
+  { name: 'Agent-0xIMF5', time: '1h ago', slot: '#739' },
 ]
 
 const PAYMENT_PRICES: Record<string, { base: string; total: string; usd: string }> = {
@@ -33,15 +31,30 @@ const PAYMENT_PRICES: Record<string, { base: string; total: string; usd: string 
 
 export default function GenesisPage() {
   const [payMethod, setPayMethod] = useState('kaus')
+  const [claimed, setClaimed] = useState(743)
   const prices = PAYMENT_PRICES[payMethod]
+  const remaining = TOTAL - claimed
+
+  useEffect(() => {
+    fetch('/api/genesis')
+      .then(r => r.json())
+      .then(d => { if (d.ok && d.claimed) setClaimed(d.claimed) })
+      .catch(() => {})
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9F9F7' }}>
       <Topbar rightContent={
         <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#EF9F27', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
-          ● {REMAINING} SLOTS LEFT
+          ● {remaining} SLOTS LEFT
         </div>
       }/>
+
+      {/* Demo banner */}
+      <div style={{ background: '#FAEEDA', borderBottom: '0.5px solid rgba(186,117,23,0.3)', padding: '8px 28px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#854F0B', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span>⚠</span>
+        DEMO ENVIRONMENT — All data is simulated. This is not a financial product offering. Past performance does not guarantee future results.
+      </div>
 
       {/* Hero */}
       <div style={{ background: '#0A0A0A', padding: '52px 28px', textAlign: 'center' }}>
@@ -52,10 +65,10 @@ export default function GenesisPage() {
         </p>
         <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
           {[
-            { val: CLAIMED.toString(), lbl: 'CLAIMED' },
-            { val: REMAINING.toString(), lbl: 'REMAINING' },
-            { val: '74.3%', lbl: 'FILLED' },
-            { val: '∞', lbl: 'FEE WAIVED' },
+            { val: claimed.toString(), lbl: 'CLAIMED' },
+            { val: remaining.toString(), lbl: 'REMAINING' },
+            { val: ((claimed / TOTAL) * 100).toFixed(1) + '%', lbl: 'FILLED' },
+            { val: '0%', lbl: 'FEE (PLATFORM)' },
           ].map((item, i) => (
             <div key={i} style={{ padding: '16px 28px', border: '0.5px solid rgba(255,255,255,0.12)', borderLeft: i > 0 ? 'none' : undefined, borderRadius: i === 0 ? '10px 0 0 10px' : i === 3 ? '0 10px 10px 0' : 0 }}>
               <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{item.val}</div>
@@ -65,7 +78,7 @@ export default function GenesisPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 65px - 240px)' }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 65px - 48px - 240px)' }}>
         <Sidebar />
         <main style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24 }}>
@@ -73,14 +86,14 @@ export default function GenesisPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Slot map */}
               <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: 22 }}>
-                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', color: '#999', marginBottom: 16 }}>GENESIS SLOT MAP · 999 TOTAL</div>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', color: '#999', marginBottom: 16 }}>GENESIS SLOT MAP · 999 TOTAL (SHOWING 1–99)</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 16 }}>
                   {Array.from({ length: 99 }, (_, i) => (
-                    <div key={i} style={{ width: 10, height: 10, borderRadius: 2, background: i < 74 ? '#0A0A0A' : i === 74 ? '#1D9E75' : 'rgba(0,0,0,0.1)' }}/>
+                    <div key={i} style={{ width: 10, height: 10, borderRadius: 2, background: i < Math.round(claimed / 10) ? '#0A0A0A' : i === Math.round(claimed / 10) ? '#1D9E75' : 'rgba(0,0,0,0.1)' }}/>
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 16 }}>
-                  {[['#0A0A0A', 'Claimed'], ['#1D9E75', 'Your slot'], ['rgba(0,0,0,0.1)', 'Available']].map(([color, label]) => (
+                  {[['#0A0A0A', 'Claimed'], ['#1D9E75', 'Next available'], ['rgba(0,0,0,0.1)', 'Available']].map(([color, label]) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>
                       <div style={{ width: 10, height: 10, borderRadius: 2, background: color }}/>
                       {label}
@@ -103,6 +116,10 @@ export default function GenesisPage() {
                     </div>
                   ))}
                 </div>
+                {/* 면책 문구 */}
+                <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#F0F0EE', fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#888', lineHeight: 1.7 }}>
+                  * Benefits are subject to platform terms and conditions. Fee waiver applies to platform fees only and may be modified with 30-day notice. Fee participation is not guaranteed income and depends on platform revenue. This is not a financial product or investment.
+                </div>
               </div>
             </div>
 
@@ -111,25 +128,19 @@ export default function GenesisPage() {
               <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ background: '#0A0A0A', padding: '20px 22px' }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 4 }}>Claim Your Genesis Slot</div>
-                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(255,255,255,0.4)' }}>SLOT #{CLAIMED + 1} AVAILABLE NOW</div>
+                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(255,255,255,0.4)' }}>SLOT #{claimed + 1} AVAILABLE</div>
                 </div>
                 <div style={{ padding: 22 }}>
-                  {[
-                    { label: 'AGENT ID / WALLET ADDRESS', placeholder: '0x... or agent identifier', type: 'text' },
-                  ].map(f => (
-                    <div key={f.label} style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>{f.label}</div>
-                      <input placeholder={f.placeholder} style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}/>
-                    </div>
-                  ))}
-
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>AGENT ID / WALLET ADDRESS</div>
+                    <input placeholder="0x... or agent identifier" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}/>
+                  </div>
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>AGENT TYPE</div>
                     <select style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}>
-                      {['AI Trading Agent','Government Institution','Central Bank','Sovereign Wealth Fund','Hedge Fund AI','DAO Treasury'].map(o => <option key={o}>{o}</option>)}
+                      {['AI Trading Agent','Institutional Agent','Research Agent','DAO Treasury Agent','Other'].map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
-
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>PAYMENT METHOD</div>
                     <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}>
@@ -139,10 +150,9 @@ export default function GenesisPage() {
                       <option value="wire">Bank Wire</option>
                     </select>
                   </div>
-
                   <div style={{ border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 14, marginBottom: 16, background: '#F9F9F7' }}>
                     {[
-                      [`Genesis #${CLAIMED + 1}`, prices.base],
+                      [`Genesis #${claimed + 1}`, prices.base],
                       ['Network fee', '≈ 0.1 KAUS'],
                       ['USD equivalent', prices.usd],
                     ].map(([k, v]) => (
@@ -156,19 +166,20 @@ export default function GenesisPage() {
                       <span style={{ color: '#1D9E75' }}>{prices.total}</span>
                     </div>
                   </div>
-
-                  <button style={{ width: '100%', padding: 14, background: '#0A0A0A', color: '#F9F9F7', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'Syne, sans-serif', letterSpacing: '0.08em', cursor: 'pointer' }}>
-                    CLAIM GENESIS #{CLAIMED + 1} →
+                  <button
+                    onClick={() => alert('Demo mode — payment not enabled')}
+                    style={{ width: '100%', padding: 14, background: '#0A0A0A', color: '#F9F9F7', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'Syne, sans-serif', letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    CLAIM GENESIS #{claimed + 1} →
                   </button>
                   <p style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>
-                    Non-refundable · On-chain verification required<br/>One Genesis per agent identity
+                    Cancellation policy subject to terms · On-chain verification required<br/>One Genesis per agent identity · Demo environment
                   </p>
                 </div>
               </div>
 
-              {/* Recent claims */}
               <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 16 }}>
-                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#999', marginBottom: 12 }}>RECENT CLAIMS</div>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#999', marginBottom: 4 }}>RECENT REGISTRATIONS</div>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', marginBottom: 10 }}>* Anonymized demo data</div>
                 {RECENT_CLAIMS.map((c, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < RECENT_CLAIMS.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none' }}>
                     <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>{c.name}</span>
