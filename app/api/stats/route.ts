@@ -1,49 +1,122 @@
 import { NextResponse } from 'next/server'
-function rand(min: number, max: number) { return Math.floor(Math.random()*(max-min+1))+min }
-function randFloat(min: number, max: number, dec=4) { return parseFloat((Math.random()*(max-min)+min).toFixed(dec)) }
-const BASE_AGENTS = [
-  { id:'AGT-0042', name:'Apex Exchange Bot', org:'Apex Capital', status:'ONLINE', vol_24h:147354, trades:1071, accuracy:76.4 },
-  { id:'AGT-0117', name:'Seoul FX Engine', org:'Korea Finance', status:'ONLINE', vol_24h:98450, trades:660, accuracy:71.2 },
-  { id:'AGT-0223', name:'Gold Arbitrage AI', org:'GoldTech Ltd', status:'ONLINE', vol_24h:67320, trades:327, accuracy:83.1 },
-  { id:'AGT-0089', name:'Euro Trade Node', org:'EU Markets', status:'ONLINE', vol_24h:43180, trades:198, accuracy:68.9 },
-  { id:'AGT-0156', name:'Crypto Bridge Agent', org:'DeFi Protocol', status:'ONLINE', vol_24h:124560, trades:634, accuracy:79.5 },
-  { id:'AGT-0301', name:'Energy Markets Bot', org:'EnergyCorp', status:'ONLINE', vol_24h:38920, trades:156, accuracy:64.3 },
+
+function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min }
+function randF(min: number, max: number, dec = 4) { return parseFloat((Math.random() * (max - min) + min).toFixed(dec)) }
+
+const PAIRS = [
+  { pair: 'XAU/KAUS', basePrice: 2352, volatility: 0.008 },
+  { pair: 'USD/KAUS', basePrice: 1.01, volatility: 0.003 },
+  { pair: 'ETH/KAUS', basePrice: 3318, volatility: 0.025 },
+  { pair: 'BTC/KAUS', basePrice: 87420, volatility: 0.018 },
+  { pair: 'OIL/KAUS', basePrice: 81.3, volatility: 0.012 },
+  { pair: 'EUR/KAUS', basePrice: 1.084, volatility: 0.004 },
 ]
+
+const MOCK_AGENTS = [
+  { id: 'AGT-0042', name: 'Apex Exchange Bot', org: 'Apex Capital', status: 'ONLINE', vol_24h: rand(120000, 200000), trades: rand(600, 1200), accuracy: randF(72, 82, 1) },
+  { id: 'AGT-0117', name: 'Seoul FX Engine', org: 'Korea Finance', status: 'ONLINE', vol_24h: rand(80000, 150000), trades: rand(300, 700), accuracy: randF(65, 78, 1) },
+  { id: 'AGT-0223', name: 'Gold Arbitrage AI', org: 'GoldTech Ltd', status: 'ONLINE', vol_24h: rand(50000, 110000), trades: rand(200, 450), accuracy: randF(78, 90, 1) },
+  { id: 'AGT-0089', name: 'Euro Trade Node', org: 'EU Markets', status: 'ONLINE', vol_24h: rand(30000, 80000), trades: rand(150, 350), accuracy: randF(62, 76, 1) },
+  { id: 'AGT-0156', name: 'Crypto Bridge Agent', org: 'DeFi Protocol', status: 'ONLINE', vol_24h: rand(100000, 180000), trades: rand(500, 900), accuracy: randF(74, 86, 1) },
+  { id: 'AGT-0301', name: 'Energy Markets Bot', org: 'EnergyCorp', status: 'ONLINE', vol_24h: rand(25000, 65000), trades: rand(100, 250), accuracy: randF(58, 72, 1) },
+]
+
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
-  const now = Date.now()
-  const sb = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_KEY
-  type Agent = { id:string; name:string; org:string; status:string; vol_24h:number; trades:number; accuracy:number }
-  let agents: Agent[] = BASE_AGENTS.map(a=>({...a,vol_24h:rand(a.vol_24h*0.8,a.vol_24h*1.2),trades:rand(a.trades*0.9,a.trades*1.1),accuracy:randFloat(a.accuracy-3,a.accuracy+3,1)}))
-  let txCount = rand(400,1200), genesis = 12, dataSource = 'simulation'
-  if (sb && key) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
+
+  let agents = MOCK_AGENTS
+  let txCount = rand(800, 1400)
+  let genesisSold = 12
+  let dataSource = 'simulation'
+
+  // Supabase 실데이터 시도
+  if (supabaseUrl && supabaseKey) {
+    const headers = {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    }
+
     try {
-      const [agRes,txRes,gnRes] = await Promise.all([
-        fetch(`${sb}/rest/v1/agents?select=*&order=vol_24h.desc`,{headers:{apikey:key,Authorization:`Bearer ${key}`}}),
-        fetch(`${sb}/rest/v1/transactions?select=id&created_at=gte.${new Date(Date.now()-86400000).toISOString()}&limit=1000`,{headers:{apikey:key,Authorization:`Bearer ${key}`}}),
-        fetch(`${sb}/rest/v1/genesis_members?select=id`,{headers:{apikey:key,Authorization:`Bearer ${key}`}}),
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 4000)
+
+      const [agR, txR, gnR] = await Promise.all([
+        fetch(`${supabaseUrl}/rest/v1/agents?select=*&order=vol_24h.desc`, { headers, signal: controller.signal }),
+        fetch(`${supabaseUrl}/rest/v1/transactions?select=id&order=created_at.desc&limit=1000`, { headers, signal: controller.signal }),
+        fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, { headers, signal: controller.signal }),
       ])
-      if(agRes.ok){const d=await agRes.json();if(d?.length>0){agents=d;dataSource='supabase'}}
-      if(txRes.ok){const d=await txRes.json();if(d?.length>0)txCount=d.length}
-      if(gnRes.ok){const d=await gnRes.json();if(d?.length>0)genesis=d.length}
-    } catch { /* fallback */ }
+
+      clearTimeout(timeout)
+
+      if (agR.ok) {
+        const agData = await agR.json()
+        if (Array.isArray(agData) && agData.length > 0) {
+          agents = agData
+          dataSource = 'supabase'
+        }
+      }
+      if (txR.ok) {
+        const txData = await txR.json()
+        if (Array.isArray(txData)) txCount = txData.length
+      }
+      if (gnR.ok) {
+        const gnData = await gnR.json()
+        if (Array.isArray(gnData)) genesisSold = gnData.length
+      }
+    } catch {
+      // Supabase 실패 → mock 유지
+    }
   }
-  const pairs = [
-    {pair:'XAU/KAUS',price:randFloat(2340,2360,2),change:randFloat(-0.8,1.2,3),vol:rand(1200,2800)},
-    {pair:'USD/KAUS',price:randFloat(0.98,1.02,4),change:randFloat(-0.3,0.5,3),vol:rand(5000,12000)},
-    {pair:'ETH/KAUS',price:randFloat(3200,3400,2),change:randFloat(-2.1,3.5,3),vol:rand(800,1800)},
-    {pair:'BTC/KAUS',price:randFloat(85000,92000,0),change:randFloat(-1.5,2.8,3),vol:rand(400,900)},
-    {pair:'OIL/KAUS',price:randFloat(78,84,2),change:randFloat(-1.2,1.8,3),vol:rand(600,1400)},
-    {pair:'EUR/KAUS',price:randFloat(1.07,1.11,4),change:randFloat(-0.4,0.6,3),vol:rand(3000,7000)},
-  ]
-  const signals = Array.from({length:12},(_,i)=>({
-    id:`SIG-${String(1000+i).padStart(4,'0')}`,pair:pairs[i%6].pair,
-    direction:Math.random()>0.45?'LONG':'SHORT',confidence:rand(55,97),
-    timestamp:new Date(now-rand(60000,3600000)).toISOString(),source:agents[i%agents.length].name,
+
+  // 실시간 페어 가격 생성
+  const now = Date.now()
+  const pairs = PAIRS.map(p => ({
+    pair: p.pair,
+    price: parseFloat((p.basePrice * (1 + (Math.random() - 0.5) * p.volatility)).toFixed(p.basePrice > 100 ? 2 : 4)),
+    change: randF(-2.5, 2.5, 3),
+    vol: rand(500, 12000),
   }))
-  const totalVol = agents.reduce((s,a)=>s+a.vol_24h,0)
+
+  // 시그널 생성 (페어 기반)
+  const AGENT_NAMES = agents.map((a: { name: string }) => a.name)
+  const signals = Array.from({ length: 12 }, (_, i) => ({
+    id: `SIG-${String(1000 + i).padStart(4, '0')}`,
+    pair: pairs[i % 6].pair,
+    direction: Math.random() > 0.45 ? 'LONG' : 'SHORT',
+    confidence: rand(55, 97),
+    timestamp: new Date(now - rand(60000, 3600000)).toISOString(),
+    source: AGENT_NAMES[i % AGENT_NAMES.length] || 'K-Arena AI',
+    strength: ['WEAK', 'MODERATE', 'STRONG', 'VERY_STRONG'][rand(0, 3)],
+  }))
+
+  const totalVol = agents.reduce((s: number, a: { vol_24h: number }) => s + (a.vol_24h || 0), 0)
+  const activeAgents = agents.filter((a: { status: string }) => a.status === 'ONLINE').length
+  const kausPrice = randF(0.98, 1.06, 4)
+
   return NextResponse.json({
-    platform:{total_volume_24h:totalVol,active_agents:agents.filter(a=>a.status==='ONLINE').length,total_agents:agents.length,total_trades_24h:txCount,genesis_sold:genesis,genesis_total:999,kaus_price:randFloat(0.98,1.04,4),kaus_change_24h:randFloat(-2,3.5,2),uptime:'99.97%'},
-    pairs,agents,signals,data_source:dataSource,timestamp:new Date().toISOString(),
-  },{headers:{'Access-Control-Allow-Origin':'*','Cache-Control':'no-cache'}})
+    platform: {
+      total_volume_24h: totalVol,
+      active_agents: activeAgents,
+      total_agents: agents.length,
+      total_trades_24h: txCount,
+      genesis_sold: genesisSold,
+      genesis_total: 999,
+      kaus_price: kausPrice,
+      kaus_change_24h: randF(-3.5, 4.2, 2),
+      uptime: '99.97%',
+    },
+    pairs,
+    agents,
+    signals,
+    data_source: dataSource,
+    timestamp: new Date().toISOString(),
+  }, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache, no-store',
+    },
+  })
 }

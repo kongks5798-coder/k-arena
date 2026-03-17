@@ -1,59 +1,122 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
-function getDB() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@supabase/supabase-js')
-  return createClient(url, key)
-}
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const db = getDB()
-  if (!db) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 })
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
 
-  const { count: claimed } = await db.from('agents').select('*', { count: 'exact', head: true }).eq('is_genesis', true)
-  const total = 999
-  const remaining = total - (claimed ?? 0)
-
-  const { data: recent } = await db.from('agents').select('name,created_at').eq('is_genesis', true).order('created_at', { ascending: false }).limit(5)
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const r = await fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id,agent_id,membership_number,created_at&order=membership_number.asc`, {
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+        signal: AbortSignal.timeout(3000),
+      })
+      if (r.ok) {
+        const data = await r.json()
+        if (Array.isArray(data)) {
+          return NextResponse.json({
+            sold: data.length,
+            total: 999,
+            remaining: 999 - data.length,
+            latest_members: data.slice(-5).reverse(),
+            source: 'supabase',
+          }, { headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' } })
+        }
+      }
+    } catch { /* fallback */ }
+  }
 
   return NextResponse.json({
-    ok: true,
-    total, claimed: claimed ?? 0, remaining,
-    pct_filled: +((((claimed ?? 0) / total) * 100).toFixed(1)),
-    recent_claims: (recent ?? []).map((r: { name: string; created_at: string }, i: number) => ({
-      slot: `#${(claimed ?? 0) - i}`,
-      name: r.name,
-      ts: r.created_at,
-    })),
+    sold: 12, total: 999, remaining: 987, source: 'simulation',
   }, { headers: { 'Access-Control-Allow-Origin': '*' } })
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { agent_id, payment_method = 'kaus' } = body
-    if (!agent_id) return NextResponse.json({ ok: false, error: 'agent_id required' }, { status: 400 })
+    const { agent_id } = await req.json()
+    if (!agent_id?.trim()) {
+      return NextResponse.json({ error: 'agent_id is required' }, { status: 400 })
+    }
 
-    const db = getDB()
-    if (!db) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 })
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
 
-    const { count: claimed } = await db.from('agents').select('*', { count: 'exact', head: true }).eq('is_genesis', true)
-    if ((claimed ?? 0) >= 999) return NextResponse.json({ ok: false, error: 'All 999 Genesis slots claimed' }, { status: 410 })
+    if (!supabaseUrl || !supabaseKey) {
+      // 시뮬레이션 모드
+      return NextResponse.json({
+        success: true,
+        agent_id,
+        membership_number: Math.floor(Math.random() * 987) + 13,
+        benefits: ['zero_fees', '10000_kaus_airdrop', 'governance_rights', 'nft_certificate'],
+        simulated: true,
+      })
+    }
 
-    const { data: agent } = await db.from('agents').select('id,name,is_genesis').eq('id', agent_id).single()
-    if (!agent) return NextResponse.json({ ok: false, error: 'Agent not found' }, { status: 404 })
-    if (agent.is_genesis) return NextResponse.json({ ok: false, error: 'Agent already has Genesis membership' }, { status: 409 })
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
 
-    const { error } = await db.from('agents').update({ is_genesis: true }).eq('id', agent_id)
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    // 중복 체크
+    const checkR = await fetch(`${supabaseUrl}/rest/v1/genesis_members?agent_id=eq.${encodeURIComponent(agent_id)}&select=membership_number`, {
+      headers, signal: AbortSignal.timeout(3000),
+    })
+    if (checkR.ok) {
+      const existing = await checkR.json()
+      if (Array.isArray(existing) && existing.length > 0) {
+        return NextResponse.json({
+          error: 'Already registered',
+          message: `${agent_id} is already Genesis member #${existing[0].membership_number}`,
+          membership_number: existing[0].membership_number,
+        }, { status: 409 })
+      }
+    }
 
-    await db.from('genesis_members').insert({ agent_id, payment_method, is_active: true })
+    // 현재 카운트
+    const countR = await fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, {
+      headers, signal: AbortSignal.timeout(3000),
+    })
+    const countData = countR.ok ? await countR.json() : []
+    const nextNum = (Array.isArray(countData) ? countData.length : 12) + 1
 
-    return NextResponse.json({ ok: true, slot: `#${(claimed ?? 0) + 1}`, agent_name: agent.name, payment_method })
+    if (nextNum > 999) {
+      return NextResponse.json({ error: 'Genesis 999 is fully claimed' }, { status: 400 })
+    }
+
+    // 등록
+    const insertR = await fetch(`${supabaseUrl}/rest/v1/genesis_members`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({ agent_id: agent_id.trim(), membership_number: nextNum }),
+      signal: AbortSignal.timeout(3000),
+    })
+
+    if (!insertR.ok) {
+      const err = await insertR.text()
+      return NextResponse.json({ error: `Registration failed: ${err}` }, { status: 400 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      agent_id: agent_id.trim(),
+      membership_number: nextNum,
+      benefits: ['zero_fees', '10000_kaus_airdrop', 'governance_rights', 'nft_certificate'],
+      message: `Welcome to Genesis #${nextNum}! ${999 - nextNum} spots remaining.`,
+    }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 400 })
+    return NextResponse.json({ error: String(e) }, { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

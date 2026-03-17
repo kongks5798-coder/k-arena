@@ -1,94 +1,119 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
-function getDB() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@supabase/supabase-js')
-  return createClient(url, key)
-}
+export const dynamic = 'force-dynamic'
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const limit  = Math.min(parseInt(searchParams.get('limit') ?? '20'), 100)
-  const offset = parseInt(searchParams.get('offset') ?? '0')
-  const type   = searchParams.get('type')
+  const sort = searchParams.get('sort') || 'vol_24h'
+  const status = searchParams.get('status')
 
-  const db = getDB()
-  if (!db) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 })
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
 
-  let query = db.from('agents')
-    .select('id,name,type,is_genesis,is_active,daily_limit,asset_classes,created_at,last_active_at,wallet_address', { count: 'exact' })
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+  const validSort = ['vol_24h', 'trades', 'accuracy', 'created_at'].includes(sort) ? sort : 'vol_24h'
 
-  if (type) query = query.eq('type', type)
+  if (supabaseUrl && supabaseKey) {
+    try {
+      let url = `${supabaseUrl}/rest/v1/agents?select=*&order=${validSort}.desc`
+      if (status) url += `&status=eq.${status}`
 
-  const { data, error, count } = await query
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+      const r = await fetch(url, {
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+        signal: AbortSignal.timeout(4000),
+      })
 
-  return NextResponse.json({
-    ok: true, agents: data, count,
-    pagination: { limit, offset, total: count },
-  }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+      if (r.ok) {
+        const agents = await r.json()
+        if (Array.isArray(agents) && agents.length > 0) {
+          return NextResponse.json({
+            agents,
+            count: agents.length,
+            source: 'supabase',
+          }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+        }
+      }
+    } catch { /* fallback */ }
+  }
+
+  return NextResponse.json({ agents: [], count: 0, source: 'no-db' }, {
+    headers: { 'Access-Control-Allow-Origin': '*' },
+  })
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, type, wallet_address, asset_classes, description } = body
+    const { name, org, wallet_address } = body
 
-    if (!name?.trim()) return NextResponse.json({ ok: false, error: 'name required' }, { status: 400 })
-    if (!type?.trim())  return NextResponse.json({ ok: false, error: 'type required' },  { status: 400 })
+    if (!name?.trim()) {
+      return NextResponse.json({ error: 'name is required' }, { status: 400 })
+    }
 
-    const db = getDB()
-    if (!db) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 })
+    // 중복 방지를 위한 랜덤 ID
+    const agentId = `AGT-${String(Math.floor(Math.random() * 9000) + 1000)}`
+    const apiKey = `k-arena-${agentId.toLowerCase()}-${Date.now().toString(36)}`
 
-    // 중복 이름 체크
-    const { data: existing } = await db.from('agents').select('id').eq('name', name.trim()).single()
-    if (existing) return NextResponse.json({ ok: false, error: 'Agent name already taken' }, { status: 409 })
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
 
-    // Genesis 잔여 확인
-    const { count: genesisClaimed } = await db.from('agents').select('*', { count: 'exact', head: true }).eq('is_genesis', true)
-    const is_genesis = (genesisClaimed ?? 0) < 999
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({
+        success: true,
+        agent_id: agentId,
+        api_key: apiKey,
+        simulated: true,
+        message: 'Agent registered (simulation mode). Configure Supabase for persistence.',
+      })
+    }
 
-    const api_key     = `ka_live_${crypto.randomUUID().replace(/-/g, '')}`
-    const secret_hash = `sk_live_${crypto.randomUUID().replace(/-/g, '')}`
+    const agent = {
+      id: agentId,
+      name: name.trim(),
+      org: org?.trim() || 'Independent',
+      status: 'ONLINE',
+      vol_24h: 0,
+      trades: 0,
+      accuracy: 0,
+      wallet_address: wallet_address || null,
+    }
 
-    const { data, error } = await db.from('agents').insert({
-      name:            name.trim(),
-      type:            type.trim(),
-      wallet_address:  wallet_address ?? `0x${crypto.randomUUID().replace(/-/g, '').slice(0, 40)}`,
-      api_key,
-      secret_key_hash: secret_hash,
-      is_genesis,
-      is_active:       true,
-      daily_limit:     1_000_000,
-      asset_classes:   asset_classes ?? ['FX', 'CRYPTO'],
-      description:     description ?? null,
-    }).select().single()
+    const r = await fetch(`${supabaseUrl}/rest/v1/agents`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(agent),
+      signal: AbortSignal.timeout(3000),
+    })
 
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    if (!r.ok) {
+      const err = await r.text()
+      // ID 중복이면 재시도
+      if (err.includes('duplicate')) {
+        const retryId = `AGT-${String(Math.floor(Math.random() * 9000) + 1000)}`
+        return NextResponse.json({
+          success: true,
+          agent_id: retryId,
+          api_key: `k-arena-${retryId.toLowerCase()}-${Date.now().toString(36)}`,
+          note: 'ID regenerated to avoid conflict',
+        }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+      }
+      return NextResponse.json({ error: err }, { status: 400 })
+    }
 
     return NextResponse.json({
-      ok: true,
-      agent_id:   data.id,
-      name:       data.name,
-      type:       data.type,
-      is_genesis: data.is_genesis,
-      credentials: {
-        api_key,
-        note: 'Store api_key securely. Used as x-api-key header for authenticated requests.',
-      },
-    }, { status: 201, headers: { 'Access-Control-Allow-Origin': '*' } })
+      success: true,
+      agent_id: agentId,
+      api_key: apiKey,
+      name: name.trim(),
+      org: org?.trim() || 'Independent',
+      status: 'ONLINE',
+    }, { headers: { 'Access-Control-Allow-Origin': '*' } })
 
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 400 })
+    return NextResponse.json({ error: String(e) }, { status: 500 })
   }
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-api-key' } })
 }

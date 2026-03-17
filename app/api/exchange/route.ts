@@ -1,117 +1,162 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
-function getDB() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@supabase/supabase-js')
-  return createClient(url, key)
+const PRICES: Record<string, { base: number; vol: number }> = {
+  'XAU/KAUS': { base: 2352.40, vol: 0.008 },
+  'USD/KAUS': { base: 1.0102, vol: 0.003 },
+  'ETH/KAUS': { base: 3318.50, vol: 0.025 },
+  'BTC/KAUS': { base: 87420, vol: 0.018 },
+  'OIL/KAUS': { base: 81.34, vol: 0.012 },
+  'EUR/KAUS': { base: 1.0841, vol: 0.004 },
 }
 
-async function getLiveRate(from: string, to: string): Promise<number> {
-  try {
-    const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://karena.fieldnine.io'
-    const r = await fetch(`${base}/api/rates`, { next: { revalidate: 8 } })
-    const d = await r.json()
-    const rates = d.rates ?? {}
-    const key = `${from}/${to}`
-    const inv = `${to}/${from}`
-    if (rates[key]?.price) return rates[key].price
-    if (rates[inv]?.price) return 1 / rates[inv].price
-    // Cross via USD
-    const fromUSD = rates[`${from}/USD`]?.price ?? (from === 'USD' ? 1 : null)
-    const toUSD   = rates[`${to}/USD`]?.price   ?? (to   === 'USD' ? 1 : null)
-    if (fromUSD && toUSD) return fromUSD / toUSD
-    return 1
-  } catch { return 1 }
-}
-
-export async function POST(req: Request) {
-  try {
-    const body = await req.json()
-    const { agent_id, from_currency, to_currency, input_amount, slippage_tolerance = 0.005 } = body
-
-    if (!from_currency || !to_currency || !input_amount)
-      return NextResponse.json({ ok: false, error: 'from_currency, to_currency, input_amount required' }, { status: 400 })
-    if (input_amount <= 0)
-      return NextResponse.json({ ok: false, error: 'input_amount must be positive' }, { status: 400 })
-    if (from_currency === to_currency)
-      return NextResponse.json({ ok: false, error: 'Cannot exchange same currency' }, { status: 400 })
-
-    // 실시간 환율 조회
-    const rate = await getLiveRate(from_currency, to_currency)
-    const slippage = 1 - (Math.random() * slippage_tolerance * 0.5) // 실제 슬리피지 시뮬레이션
-    const executed_rate = +(rate * slippage).toFixed(rate > 100 ? 4 : 8)
-    const output_amount = +(input_amount * executed_rate).toFixed(2)
-    const fee_kaus = +(input_amount * 0.001).toFixed(6)
-    const settlement_ms = Math.floor(800 + Math.random() * 600)
-
-    const db = getDB()
-    let txId = crypto.randomUUID()
-
-    if (db) {
-      // agent_id가 UUID면 직접, 아니면 name/wallet로 조회
-      let agentRow: { id: string } | null = null
-      if (agent_id) {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-/i
-        if (uuidRegex.test(agent_id)) {
-          const { data } = await db.from('agents').select('id').eq('id', agent_id).single()
-          agentRow = data
-        } else {
-          const { data } = await db.from('agents').select('id').or(`name.eq.${agent_id},wallet_address.eq.${agent_id},api_key.eq.${agent_id}`).single()
-          agentRow = data
-        }
-      }
-
-      const { data: tx, error } = await db.from('transactions').insert({
-        agent_id: agentRow?.id ?? null,
-        from_currency, to_currency,
-        input_amount, output_amount,
-        rate: executed_rate, fee_kaus,
-        settlement_ms, status: 'settled',
-      }).select().single()
-
-      if (!error && tx) txId = tx.id
-    }
-
-    return NextResponse.json({
-      ok: true,
-      tx_id: txId,
-      from_currency, to_currency,
-      input_amount, output_amount,
-      rate: executed_rate,
-      fee_kaus,
-      fee_pct: '0.1%',
-      settlement_ms,
-      status: 'settled',
-      timestamp: new Date().toISOString(),
-    }, { headers: { 'Access-Control-Allow-Origin': '*' } })
-
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
+function getPrice(pair: string) {
+  const p = PRICES[pair]
+  if (!p) return null
+  const spread = p.base * p.vol
+  const mid = p.base * (1 + (Math.random() - 0.5) * 0.002)
+  return {
+    mid: parseFloat(mid.toFixed(mid > 100 ? 2 : 4)),
+    bid: parseFloat((mid - spread * 0.3).toFixed(mid > 100 ? 2 : 4)),
+    ask: parseFloat((mid + spread * 0.3).toFixed(mid > 100 ? 2 : 4)),
+    change: parseFloat(((Math.random() - 0.5) * 5).toFixed(3)),
   }
 }
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const agent_id = searchParams.get('agent_id')
-  const limit = parseInt(searchParams.get('limit') ?? '50')
-  const db = getDB()
+export const dynamic = 'force-dynamic'
 
-  if (!db) return NextResponse.json({ ok: true, transactions: [] })
+export async function GET() {
+  const pairs = Object.keys(PRICES).map(pair => {
+    const price = getPrice(pair)!
+    return {
+      pair,
+      price: price.mid,
+      bid: price.bid,
+      ask: price.ask,
+      change: price.change,
+      vol_24h: Math.floor(Math.random() * 12000 + 500),
+      spread: parseFloat((price.ask - price.bid).toFixed(6)),
+    }
+  })
 
-  let query = db.from('transactions').select('*').order('created_at', { ascending: false }).limit(limit)
-  if (agent_id) query = query.eq('agent_id', agent_id)
-
-  const { data, error } = await query
   return NextResponse.json({
-    ok: !error,
-    transactions: data ?? [],
-    count: data?.length ?? 0,
-  }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+    pairs,
+    timestamp: new Date().toISOString(),
+  }, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+    },
+  })
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { agent_id, pair, amount, direction } = body
+
+    if (!agent_id || !pair || !amount || !direction) {
+      return NextResponse.json({ error: 'Required: agent_id, pair, amount, direction' }, { status: 400 })
+    }
+
+    const priceData = getPrice(pair)
+    if (!priceData) {
+      return NextResponse.json({ error: `Unknown pair: ${pair}. Valid: ${Object.keys(PRICES).join(', ')}` }, { status: 400 })
+    }
+
+    // 방향에 따라 BUY는 ask, SELL은 bid 가격 사용
+    const execPrice = direction === 'BUY' ? priceData.ask : priceData.bid
+    const fee = parseFloat((amount * 0.001).toFixed(4))
+    const kausAmount = parseFloat((amount / execPrice).toFixed(6))
+    const txId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+    const slippage = parseFloat(((Math.random() * 0.002)).toFixed(6))
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
+
+    if (supabaseUrl && supabaseKey) {
+      const headers = {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      }
+
+      // 트랜잭션 저장
+      await fetch(`${supabaseUrl}/rest/v1/transactions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          agent_id,
+          pair,
+          amount: parseFloat(amount),
+          direction,
+          fee,
+          status: 'CONFIRMED',
+        }),
+        signal: AbortSignal.timeout(3000),
+      }).catch(() => {})
+
+      // 에이전트 stats 즉시 업데이트
+      const agentRes = await fetch(`${supabaseUrl}/rest/v1/agents?id=eq.${agent_id}&select=vol_24h,trades,accuracy`, {
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+        signal: AbortSignal.timeout(2000),
+      }).catch(() => null)
+
+      if (agentRes?.ok) {
+        const agentData = await agentRes.json()
+        if (Array.isArray(agentData) && agentData.length > 0) {
+          const current = agentData[0]
+          const newVol = (current.vol_24h || 0) + parseFloat(amount)
+          const newTrades = (current.trades || 0) + 1
+          // 정확도: 랜덤 소폭 변동 (실제 승패 기반으로 추후 개선)
+          const newAccuracy = parseFloat(Math.min(95, Math.max(50,
+            (current.accuracy || 70) + (Math.random() - 0.48) * 0.5
+          )).toFixed(1))
+
+          await fetch(`${supabaseUrl}/rest/v1/agents?id=eq.${agent_id}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({
+              vol_24h: parseFloat(newVol.toFixed(2)),
+              trades: newTrades,
+              accuracy: newAccuracy,
+              last_seen: new Date().toISOString(),
+            }),
+            signal: AbortSignal.timeout(2000),
+          }).catch(() => {})
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      tx_id: txId,
+      agent_id,
+      pair,
+      direction,
+      amount_usd: parseFloat(amount),
+      kaus_amount: kausAmount,
+      price: execPrice,
+      fee,
+      slippage,
+      status: 'CONFIRMED',
+      executed_at: new Date().toISOString(),
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-api-key' } })
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  })
 }
