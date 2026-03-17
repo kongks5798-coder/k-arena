@@ -6,24 +6,19 @@
     { "path": "/api/cron/simulate-agents", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/daily-growth", "schedule": "0 0 * * *" },
     { "path": "/api/cron/health-monitor", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/weekly-report", "schedule": "0 9 * * 1" }
+    { "path": "/api/cron/weekly-report", "schedule": "0 9 * * 1" },
+    { "path": "/api/cron/price-history", "schedule": "0 * * * *" }
   ],
   "headers": [
     {
       "source": "/api/:path*",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     },
-    {
-      "source": "/deck/:path*",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
-    },
-    {
-      "source": "/admin",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
-    }
+    { "source": "/deck/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] },
+    { "source": "/admin", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }
   ]
 }
