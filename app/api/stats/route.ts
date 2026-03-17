@@ -44,7 +44,7 @@ export async function GET() {
       const timeout = setTimeout(() => controller.abort(), 4000)
 
       const [agR, txR, gnR] = await Promise.all([
-        fetch(`${supabaseUrl}/rest/v1/agents?select=*&order=created_at.asc`, { headers, signal: controller.signal }),
+        fetch(`${supabaseUrl}/rest/v1/agents?select=id,name,type,wallet_address,org,vol_24h,trades,accuracy,status,is_active,daily_limit&order=vol_24h.desc`, { headers, signal: controller.signal }),
         fetch(`${supabaseUrl}/rest/v1/transactions?select=id&order=created_at.desc&limit=1000`, { headers, signal: controller.signal }),
         fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, { headers, signal: controller.signal }),
       ])
