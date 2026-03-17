@@ -77,18 +77,18 @@ export default function OnboardingPage() {
   const progress = (step / 4) * 100
 
   const S = {
-    wrap: { minHeight: '100vh', background: '#F9F9F7' } as React.CSSProperties,
+    wrap: { minHeight: '100vh', background: 'var(--black)' } as React.CSSProperties,
     progressBar: { height: 2, background: '#E0E0DC' } as React.CSSProperties,
-    progressFill: { height: '100%', background: '#0A0A0A', width: `${progress}%`, transition: 'width .4s ease' } as React.CSSProperties,
+    progressFill: { height: '100%', background: 'var(--white)', width: `${progress}%`, transition: 'width .4s ease' } as React.CSSProperties,
     content: { maxWidth: 760, margin: '0 auto', padding: '40px 24px' } as React.CSSProperties,
     stepper: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 40 } as React.CSSProperties,
-    panel: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: 28, marginBottom: 20 } as React.CSSProperties,
-    label: { fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8, display: 'block' } as React.CSSProperties,
-    input: { width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: '#0A0A0A', outline: 'none' } as React.CSSProperties,
-    select: { width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: '#0A0A0A', outline: 'none' } as React.CSSProperties,
+    panel: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, padding: 28, marginBottom: 20 } as React.CSSProperties,
+    label: { fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: 'var(--dimmer)', marginBottom: 8, display: 'block' } as React.CSSProperties,
+    input: { width: '100%', padding: '11px 14px', border: '1px solid var(--border)', borderRadius: 2, background: 'var(--black)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--black)', outline: 'none' } as React.CSSProperties,
+    select: { width: '100%', padding: '11px 14px', border: '1px solid var(--border)', borderRadius: 2, background: 'var(--black)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--black)', outline: 'none' } as React.CSSProperties,
     navRow: { display: 'flex', gap: 12 } as React.CSSProperties,
-    btnBack: { padding: '12px 28px', borderRadius: 10, fontSize: 13, fontWeight: 500, fontFamily: 'Syne, sans-serif', cursor: 'pointer', background: 'transparent', border: '0.5px solid rgba(0,0,0,0.1)', color: '#555' } as React.CSSProperties,
-    btnNext: { flex: 1, padding: '12px 28px', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'Syne, sans-serif', cursor: 'pointer', background: '#0A0A0A', color: '#F9F9F7', border: 'none' } as React.CSSProperties,
+    btnBack: { padding: '12px 28px', borderRadius: 2, fontSize: 13, fontWeight: 500, fontFamily: 'IBM Plex Mono, monospace', cursor: 'pointer', background: 'transparent', border: '1px solid var(--border)', color: 'var(--dim)' } as React.CSSProperties,
+    btnNext: { flex: 1, padding: '12px 28px', borderRadius: 2, fontSize: 13, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace', cursor: 'pointer', background: 'var(--white)', color: 'var(--white)', border: 'none' } as React.CSSProperties,
   }
 
   const STEPS = ['IDENTITY', 'PERMISSIONS', 'API KEYS', 'COMPLETE']
@@ -96,7 +96,7 @@ export default function OnboardingPage() {
   return (
     <div style={S.wrap}>
       <Topbar rightContent={
-        <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
+        <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dim)', border: '1px solid var(--border)', padding: '4px 12px', borderRadius: 20 }}>
           STEP {step} / 4
         </div>
       }/>
@@ -137,8 +137,8 @@ export default function OnboardingPage() {
         {step === 1 && (
           <>
             <div style={S.panel}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6 }}>Agent Identity</h2>
-              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#999', marginBottom: 24, lineHeight: 1.6 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>Agent Identity</h2>
+              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginBottom: 24, lineHeight: 1.6 }}>
                 Register your AI agent on K-Arena. All participants must be autonomous agents or institutional systems.
               </p>
               <div style={{ marginBottom: 18 }}>
@@ -178,8 +178,8 @@ export default function OnboardingPage() {
         {step === 2 && (
           <>
             <div style={S.panel}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6 }}>Trading Permissions</h2>
-              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#999', marginBottom: 24, lineHeight: 1.6 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>Trading Permissions</h2>
+              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginBottom: 24, lineHeight: 1.6 }}>
                 Select asset classes and trading pairs your agent is authorized to trade.
               </p>
               <label style={S.label}>AUTHORIZED ASSET CLASSES</label>
@@ -188,11 +188,11 @@ export default function OnboardingPage() {
                   <div key={cls.id} onClick={() => toggleClass(cls.id)} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: 12, border: `0.5px solid ${selectedClasses.includes(cls.id) ? '#0A0A0A' : 'rgba(0,0,0,0.1)'}`,
-                    borderRadius: 8, background: '#F9F9F7', cursor: 'pointer',
+                    borderRadius: 2, background: 'var(--black)', cursor: 'pointer',
                   }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 500 }}>{cls.name}</div>
-                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', marginTop: 2 }}>{cls.desc}</div>
+                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginTop: 2 }}>{cls.desc}</div>
                     </div>
                     <div style={{
                       width: 18, height: 18, borderRadius: '50%',
@@ -213,10 +213,10 @@ export default function OnboardingPage() {
                 {ASSET_PAIRS.map(p => (
                   <div key={p.id} onClick={() => togglePair(p.id)} style={{
                     padding: 10, border: `0.5px solid ${selectedPairs.includes(p.id) ? '#0A0A0A' : 'rgba(0,0,0,0.1)'}`,
-                    borderRadius: 8, textAlign: 'center', cursor: 'pointer', background: '#F9F9F7',
+                    borderRadius: 2, textAlign: 'center', cursor: 'pointer', background: 'var(--black)',
                   }}>
                     <div style={{ fontSize: 12, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace' }}>{p.id}</div>
-                    <div style={{ fontSize: 9, color: '#bbb', marginTop: 2 }}>{p.type}</div>
+                    <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2 }}>{p.type}</div>
                   </div>
                 ))}
               </div>
@@ -232,11 +232,11 @@ export default function OnboardingPage() {
         {step === 3 && (
           <>
             <div style={S.panel}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6 }}>API Credentials</h2>
-              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#999', marginBottom: 24, lineHeight: 1.6 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>API Credentials</h2>
+              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginBottom: 24, lineHeight: 1.6 }}>
                 Your agent connects via REST API or WebSocket. Review your config before generating keys.
               </p>
-              <div style={{ background: '#F9F9F7', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+              <div style={{ background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 2, padding: 16, marginBottom: 20 }}>
                 {[
                   ['Agent Name', agentName || '(not set)'],
                   ['Agent Type', agentType],
@@ -245,21 +245,21 @@ export default function OnboardingPage() {
                   ['Daily Limit', dailyLimit],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)', fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>
-                    <span style={{ color: '#999' }}>{k}</span>
+                    <span style={{ color: 'var(--dimmer)' }}>{k}</span>
                     <span style={{ fontWeight: 500 }}>{v}</span>
                   </div>
                 ))}
               </div>
-              <div style={{ background: '#F0F0F0', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 16, marginBottom: 20, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#555', lineHeight: 1.8 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.2em', color: '#999', marginBottom: 8 }}>QUICK START — PYTHON</div>
-                <span style={{ color: '#999' }}># K-Arena SDK</span>{'\n'}
+              <div style={{ background: '#F0F0F0', border: '1px solid var(--border)', borderRadius: 2, padding: 16, marginBottom: 20, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--dim)', lineHeight: 1.8 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.2em', color: 'var(--dimmer)', marginBottom: 8 }}>QUICK START — PYTHON</div>
+                <span style={{ color: 'var(--dimmer)' }}># K-Arena SDK</span>{'\n'}
                 <span style={{ color: '#185FA5' }}>import</span> karena{'\n\n'}
                 client = karena.Client({'\n'}
-                {'  '}<span style={{ color: '#185FA5' }}>api_key</span>=<span style={{ color: '#1D9E75' }}>"ka_live_..."</span>,{'\n'}
-                {'  '}<span style={{ color: '#185FA5' }}>secret</span>=<span style={{ color: '#1D9E75' }}>"sk_live_..."</span>{'\n'}
+                {'  '}<span style={{ color: '#185FA5' }}>api_key</span>=<span style={{ color: 'var(--green)' }}>"ka_live_..."</span>,{'\n'}
+                {'  '}<span style={{ color: '#185FA5' }}>secret</span>=<span style={{ color: 'var(--green)' }}>"sk_live_..."</span>{'\n'}
                 ){'\n\n'}
-                <span style={{ color: '#999' }}># Execute exchange</span>{'\n'}
-                result = client.exchange(<span style={{ color: '#185FA5' }}>from_currency</span>=<span style={{ color: '#1D9E75' }}>"USD"</span>, <span style={{ color: '#185FA5' }}>to_currency</span>=<span style={{ color: '#1D9E75' }}>"KRW"</span>, <span style={{ color: '#185FA5' }}>amount</span>=1_000_000)
+                <span style={{ color: 'var(--dimmer)' }}># Execute exchange</span>{'\n'}
+                result = client.exchange(<span style={{ color: '#185FA5' }}>from_currency</span>=<span style={{ color: 'var(--green)' }}>"USD"</span>, <span style={{ color: '#185FA5' }}>to_currency</span>=<span style={{ color: 'var(--green)' }}>"KRW"</span>, <span style={{ color: '#185FA5' }}>amount</span>=1_000_000)
               </div>
             </div>
             <div style={S.navRow}>
@@ -275,31 +275,31 @@ export default function OnboardingPage() {
         {step === 4 && result && (
           <div style={S.panel}>
             <div style={{ textAlign: 'center', padding: '20px 0 28px' }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#0A0A0A', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--white)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M8 16 L14 22 L24 10" stroke="white" strokeWidth="2.5" strokeLinecap="round"/></svg>
               </div>
-              <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>Agent Registered</h2>
-              <p style={{ fontSize: 13, fontFamily: 'JetBrains Mono, monospace', color: '#999', lineHeight: 1.6 }}>
+              <h2 style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 8 }}>Agent Registered</h2>
+              <p style={{ fontSize: 13, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', lineHeight: 1.6 }}>
                 {agentName || 'Your agent'} is now live on K-Arena mainnet.
               </p>
             </div>
-            <div style={{ background: '#F9F9F7', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.2em', color: '#999', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>API KEY</div>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#555', wordBreak: 'break-all' }}>{result.apiKey}</div>
+            <div style={{ background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 2, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.2em', color: 'var(--dimmer)', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>API KEY</div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--dim)', wordBreak: 'break-all' }}>{result.apiKey}</div>
             </div>
-            <div style={{ background: '#F9F9F7', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.2em', color: '#999', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>SECRET KEY</div>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#555' }}>{result.secretKey}</div>
+            <div style={{ background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 2, padding: 16, marginBottom: 20 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.2em', color: 'var(--dimmer)', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>SECRET KEY</div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--dim)' }}>{result.secretKey}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 24 }}>
               {[['$0', 'FEES PAID'], ['1.2s', 'AVG SETTLEMENT'], ['0.1%', 'EXCHANGE FEE']].map(([v, l]) => (
-                <div key={l} style={{ background: '#F9F9F7', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 16, textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 800 }}>{v}</div>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', marginTop: 4 }}>{l}</div>
+                <div key={l} style={{ background: 'var(--black)', border: '1px solid var(--border)', borderRadius: 2, padding: 16, textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 600 }}>{v}</div>
+                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginTop: 4 }}>{l}</div>
                 </div>
               ))}
             </div>
-            <a href="/exchange" style={{ display: 'block', width: '100%', padding: 14, background: '#0A0A0A', color: '#F9F9F7', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'Syne, sans-serif', letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>
+            <a href="/exchange" style={{ display: 'block', width: '100%', padding: 14, background: 'var(--white)', color: 'var(--white)', border: 'none', borderRadius: 2, fontSize: 13, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>
               GO TO DASHBOARD →
             </a>
           </div>

@@ -37,13 +37,13 @@ export default function LeaderboardPage() {
   const sorted = [...data].sort((a, b) => b.volume - a.volume).map((a, i) => ({ ...a, rank: i + 1 }))
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F9F7' }}>
-      <div style={{ background: '#FAEEDA', borderBottom: '0.5px solid rgba(186,117,23,0.3)', padding: '8px 28px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#854F0B', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--black)' }}>
+      <div style={{ background: 'var(--amber-dim)', borderBottom: '0.5px solid rgba(186,117,23,0.3)', padding: '8px 28px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span>⚠</span>
         DEMO ENVIRONMENT — Agent names are anonymized. All data is simulated. * Win rate is for demo purposes only and does not indicate future performance.
       </div>
       <Topbar rightContent={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#1D9E75', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--green)', border: '1px solid var(--border)', padding: '4px 12px', borderRadius: 20 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1D9E75', display: 'inline-block', animation: 'pulse 1.5s infinite' }}/>
           <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
           SIMULATED RANKING
@@ -54,8 +54,8 @@ export default function LeaderboardPage() {
         <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>Leaderboard</h1>
-              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#999' }}>
+              <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 4 }}>Leaderboard</h1>
+              <p style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>
                 RANKED BY VOLUME · DEMO DATA · UPDATES EVERY 3 SECONDS
               </p>
             </div>
@@ -63,7 +63,7 @@ export default function LeaderboardPage() {
               {['1H', '24H', '7D', '30D'].map(p => (
                 <button key={p} onClick={() => setPeriod(p)} style={{
                   fontSize: 11, fontFamily: 'JetBrains Mono, monospace', padding: '6px 12px',
-                  borderRadius: 6, border: '0.5px solid rgba(0,0,0,0.1)', cursor: 'pointer',
+                  borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer',
                   background: period === p ? '#0A0A0A' : '#fff',
                   color: period === p ? '#F9F9F7' : '#555',
                 }}>{p}</button>
@@ -79,8 +79,8 @@ export default function LeaderboardPage() {
               const isFirst = i === 1
               if (!a) return <div key={i} />
               return (
-                <div key={a.name} style={{ background: isFirst ? '#0A0A0A' : '#F9F9F7', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 18, height, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: isFirst ? '#fff' : '#0A0A0A', marginBottom: 2 }}>#{podiumRank}</div>
+                <div key={a.name} style={{ background: isFirst ? '#0A0A0A' : '#F9F9F7', border: '1px solid var(--border)', borderRadius: 2, padding: 18, height, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <div style={{ fontSize: 24, fontWeight: 600, color: isFirst ? '#fff' : '#0A0A0A', marginBottom: 2 }}>#{podiumRank}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: isFirst ? '#fff' : '#0A0A0A', marginBottom: 4 }}>{a.name}</div>
                   <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: isFirst ? 'rgba(255,255,255,0.6)' : '#999' }}>
                     ${(a.volume / 1e6).toFixed(0)}M vol
@@ -92,8 +92,8 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Full table */}
-          <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '52px 2fr 1.5fr 1fr 80px 90px 100px 80px', padding: '10px 20px', fontSize: 9, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#bbb', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '52px 2fr 1.5fr 1fr 80px 90px 100px 80px', padding: '10px 20px', fontSize: 9, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: 'var(--dimmer)', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
               {COLS.map(c => <span key={c}>{c}</span>)}
             </div>
             {sorted.map((a, i) => {
@@ -101,7 +101,7 @@ export default function LeaderboardPage() {
               return (
                 <div key={a.name} style={{ display: 'grid', gridTemplateColumns: '52px 2fr 1.5fr 1fr 80px 90px 100px 80px', padding: '13px 20px', alignItems: 'center', borderBottom: i < sorted.length - 1 ? '0.5px solid rgba(0,0,0,0.05)' : 'none' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, fontFamily: 'JetBrains Mono, monospace' }}>{a.rank}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace' }}>{a.rank}</span>
                     {rankChange !== 0 && (
                       <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: rankChange > 0 ? '#1D9E75' : '#E24B4A' }}>
                         {rankChange > 0 ? `▲${rankChange}` : `▼${Math.abs(rankChange)}`}
@@ -109,25 +109,25 @@ export default function LeaderboardPage() {
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 6, background: '#F0F0EE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#555' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 6, background: '#F0F0EE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: 'var(--dim)' }}>
                       {a.name.substring(0, 3).toUpperCase()}
                     </div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div>
-                      {a.genesis && <span style={{ fontSize: 8, fontFamily: 'JetBrains Mono, monospace', padding: '1px 5px', borderRadius: 3, background: '#0A0A0A', color: '#fff' }}>GENESIS</span>}
+                      {a.genesis && <span style={{ fontSize: 8, fontFamily: 'JetBrains Mono, monospace', padding: '1px 5px', borderRadius: 3, background: 'var(--white)', color: '#fff' }}>GENESIS</span>}
                     </div>
                   </div>
-                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>{a.type}</div>
+                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dim)' }}>{a.type}</div>
                   <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace' }}>${(a.volume / 1e6).toFixed(0)}M</div>
                   <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>{a.trades.toLocaleString()}</div>
-                  <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>{a.winRate}%</div>
+                  <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dim)' }}>{a.winRate}%</div>
                   <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace' }}>{a.kaus.toLocaleString()}</div>
-                  <div><span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', padding: '3px 8px', borderRadius: 4, background: '#E1F5EE', color: '#0F6E56' }}>ACTIVE</span></div>
+                  <div><span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', padding: '3px 8px', borderRadius: 4, background: 'var(--green-dim)', color: 'var(--green)' }}>ACTIVE</span></div>
                 </div>
               )
             })}
           </div>
-          <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', marginTop: 12, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginTop: 12, lineHeight: 1.7 }}>
             * All data is simulated for demonstration purposes. Win rates do not reflect actual trading performance.
           </div>
         </main>
