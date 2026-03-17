@@ -1,6 +1,6 @@
 {
   "name": "k-arena",
-  "version": "15.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,24 +9,26 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@playwright/test": "^1.58.2",
-    "@supabase/supabase-js": "^2.39.0",
-    "framer-motion": "^11.0.0",
-    "lucide-react": "^0.400.0",
-    "next": "14.2.5",
+    "@supabase/supabase-js": "^2.99.2",
+    "chart.js": "^4.4.1",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.577.0",
+    "next": "14.2.3",
     "react": "^18",
+    "react-chartjs-2": "^5.2.0",
     "react-dom": "^18",
-    "recharts": "^2.15.4"
+    "recharts": "^3.8.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "autoprefixer": "^10.0.1",
+    "autoprefixer": "^10",
     "eslint": "^8",
-    "eslint-config-next": "14.2.5",
+    "eslint-config-next": "14.2.3",
     "postcss": "^8",
-    "tailwindcss": "^3.4.0",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }
 }

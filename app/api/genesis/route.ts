@@ -1,71 +1,64 @@
 import { NextResponse } from 'next/server'
 
+function getDB() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createClient } = require('@supabase/supabase-js')
+  return createClient(url, key)
+}
+
 export async function GET() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
-
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ sold: 12, total: 999, remaining: 987 })
-  }
-
-  try {
-    const r = await fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+  const db = getDB()
+  if (!db) {
+    return NextResponse.json({ ok: true, mode: 'demo', total: 999, claimed: 743, remaining: 256, fill_rate: '74.3', next_slot: 744,
+      recent_claims: [
+        { slot_number: 743, agent_name: 'GPT-5 Treasury', claimed_at: new Date().toISOString() },
+        { slot_number: 742, agent_name: 'KR-GOV-001', claimed_at: new Date().toISOString() },
+      ]
     })
-    const data = await r.json()
-    const sold = Array.isArray(data) ? data.length : 12
-    return NextResponse.json({ sold, total: 999, remaining: 999-sold })
-  } catch {
-    return NextResponse.json({ sold: 12, total: 999, remaining: 987 })
   }
+
+  const { count: claimed } = await db.from('genesis_members').select('*', { count: 'exact', head: true })
+  const total = 999
+  const { data: recent } = await db.from('genesis_members').select('slot_number,agent_name,claimed_at')
+    .order('claimed_at', { ascending: false }).limit(10)
+
+  return NextResponse.json({ ok: true, total, claimed: claimed ?? 0, remaining: total - (claimed ?? 0),
+    fill_rate: (((claimed ?? 0) / total) * 100).toFixed(1), next_slot: (claimed ?? 0) + 1, recent_claims: recent ?? [] })
 }
 
 export async function POST(req: Request) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
-
   try {
-    const { agent_id } = await req.json()
-    if (!agent_id) return NextResponse.json({ error: 'agent_id required' }, { status: 400 })
+    const body = await req.json()
+    const { agent_id, wallet_address, payment_method } = body
+    if (!agent_id || !wallet_address) return NextResponse.json({ ok: false, error: 'agent_id, wallet_address required' }, { status: 400 })
 
-    if (!supabaseUrl || !supabaseKey) {
-      // DB 없으면 시뮬레이션 응답
-      return NextResponse.json({ success: true, membership_number: Math.floor(Math.random()*987)+13, agent_id, simulated: true })
+    const db = getDB()
+    const slot = 744
+
+    if (!db) {
+      return NextResponse.json({ ok: true, mode: 'demo',
+        genesis: { slot_number: slot, benefits: ['zero_fees','priority_routing','100x_voting','25pct_revenue_share'], wallet: wallet_address }
+      }, { status: 201 })
     }
 
-    // 중복 체크
-    const checkR = await fetch(`${supabaseUrl}/rest/v1/genesis_members?agent_id=eq.${agent_id}`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
-    })
-    const existing = await checkR.json()
-    if (Array.isArray(existing) && existing.length > 0) {
-      return NextResponse.json({ error: 'Already registered', existing: existing[0] }, { status: 409 })
-    }
+    const { count } = await db.from('genesis_members').select('*', { count: 'exact', head: true })
+    if ((count ?? 0) >= 999) return NextResponse.json({ ok: false, error: 'All 999 Genesis slots filled' }, { status: 409 })
 
-    // 현재 카운트
-    const countR = await fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
-    })
-    const countData = await countR.json()
-    const membershipNumber = (Array.isArray(countData) ? countData.length : 12) + 1
+    const { data: genesis, error } = await db.from('genesis_members').insert({
+      agent_id, wallet_address, slot_number: (count ?? 0) + 1,
+      payment_method: payment_method ?? 'kaus', payment_amount: 500, is_active: true,
+    }).select().single()
 
-    if (membershipNumber > 999) {
-      return NextResponse.json({ error: 'Genesis 999 is full' }, { status: 400 })
-    }
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    await db.from('agents').update({ is_genesis: true }).eq('id', agent_id)
 
-    // 등록
-    const insertR = await fetch(`${supabaseUrl}/rest/v1/genesis_members`, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json', Prefer: 'return=representation',
-      },
-      body: JSON.stringify({ agent_id, membership_number: membershipNumber }),
-    })
-    const inserted = await insertR.json()
-
-    return NextResponse.json({ success: true, membership_number: membershipNumber, agent_id, data: inserted })
-  } catch(e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    return NextResponse.json({ ok: true, genesis: { slot_number: genesis.slot_number,
+      benefits: ['zero_fees','priority_routing','100x_voting','25pct_revenue_share'], wallet: wallet_address,
+    }}, { status: 201 })
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Invalid request' }, { status: 400 })
   }
 }

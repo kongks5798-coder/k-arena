@@ -1,66 +1,101 @@
 'use client'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
 
-export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
+interface TopbarProps {
+  rightContent?: React.ReactNode
+}
+
+export function Topbar({ rightContent }: TopbarProps) {
   const pathname = usePathname()
-  const [time, setTime] = useState('')
 
-  useEffect(() => {
-    const update = () => setTime(new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC')
-    update()
-    const t = setInterval(update, 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  const getPath = () => {
-    const map: Record<string,string> = {
-      '/': 'OVERVIEW', '/exchange': 'FX EXCHANGE', '/genesis': 'GENESIS 999',
-      '/wallet': 'KAUS WALLET', '/agents': 'AGENT REGISTRY',
-      '/community': 'SIGNAL HUB', '/leaderboard': 'RANKINGS',
-      '/onboarding': 'REGISTER', '/data': 'INTELLIGENCE',
-    }
-    return map[pathname] ?? pathname.toUpperCase().slice(1)
+  const getPageName = () => {
+    if (pathname === '/') return null
+    if (pathname.startsWith('/exchange')) return 'FX EXCHANGE'
+    if (pathname.startsWith('/genesis')) return 'GENESIS 999'
+    if (pathname.startsWith('/onboarding')) return 'AGENT REGISTRATION'
+    if (pathname.startsWith('/wallet')) return 'KAUS WALLET'
+    return null
   }
+
+  const pageName = getPageName()
 
   return (
     <nav style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 20px', height: 44,
-      borderBottom: '1px solid var(--border)',
-      background: 'var(--black)',
-      position: 'sticky', top: 0, zIndex: 100,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '16px 28px',
+      borderBottom: '0.5px solid rgba(0,0,0,0.1)',
+      background: '#fff',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
     }}>
-      <Link href="/" style={{ display:'flex', alignItems:'center', gap:12, textDecoration:'none' }}>
-        <div style={{ width:28, height:28, border:'1px solid var(--border-mid)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <polygon points="7,1 13,4.5 13,10.5 7,14 1,10.5 1,4.5" stroke="var(--green)" strokeWidth="1" fill="none"/>
-            <polygon points="7,4 10,5.75 10,9.25 7,11 4,9.25 4,5.75" fill="var(--green)" opacity="0.6"/>
+      <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+        <div style={{
+          width: 32, height: 32,
+          background: '#0A0A0A',
+          borderRadius: 7,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2L18 7V13L10 18L2 13V7L10 2Z" stroke="white" strokeWidth="1.5"/>
+            <path d="M10 6L14 8.5V13L10 15.5L6 13V8.5L10 6Z" fill="white"/>
           </svg>
         </div>
         <div>
-          <div style={{ fontSize:12, fontWeight:600, letterSpacing:'0.15em', color:'var(--white)' }}>K-ARENA</div>
-          <div style={{ fontSize:8, color:'var(--dimmer)', letterSpacing:'0.2em' }}>AI FINANCIAL EXCHANGE</div>
+          <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.12em', color: '#0A0A0A' }}>K-ARENA</div>
+          <div style={{ fontSize: 9, letterSpacing: '0.2em', color: '#999', fontFamily: 'JetBrains Mono, monospace' }}>AI FINANCIAL EXCHANGE</div>
         </div>
       </Link>
 
-      <div style={{ fontSize:10, color:'var(--dimmer)', letterSpacing:'0.08em' }}>
-        {pathname !== '/' && <span>/ {getPath()}</span>}
-      </div>
+      {pageName && (
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#999' }}>
+          EXCHANGE / <span style={{ color: '#555' }}>{pageName}</span>
+        </div>
+      )}
 
-      <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-        <span style={{ fontSize:10, color:'var(--dimmer)', letterSpacing:'0.06em', fontFamily:'IBM Plex Mono, monospace' }}>{time}</span>
-        {rightContent ?? (
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-              <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--green)', display:'inline-block', animation:'dot-pulse 2s infinite' }}/>
-              <span style={{ fontSize:9, color:'var(--green)', letterSpacing:'0.1em' }}>LIVE</span>
-            </div>
-            <span style={{ fontSize:9, color:'var(--dimmer)', letterSpacing:'0.08em', borderLeft:'1px solid var(--border)', paddingLeft:12 }}>FEE 0.1%</span>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {rightContent || (
+          <>
+            <LivePill />
+            <FeeTag />
+          </>
         )}
       </div>
     </nav>
+  )
+}
+
+function LivePill() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+      color: '#555', border: '0.5px solid rgba(0,0,0,0.1)',
+      padding: '4px 12px', borderRadius: 20,
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%', background: '#1D9E75',
+        display: 'inline-block',
+        animation: 'pulse 2s infinite',
+      }}/>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
+      MAINNET LIVE
+    </div>
+  )
+}
+
+function FeeTag() {
+  return (
+    <div style={{
+      fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+      color: '#555', border: '0.5px solid rgba(0,0,0,0.1)',
+      padding: '4px 12px', borderRadius: 20,
+    }}>
+      FEE 0.1%
+    </div>
   )
 }

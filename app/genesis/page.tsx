@@ -1,156 +1,185 @@
 'use client'
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
+
+import { useState } from 'react'
+import { Topbar } from '@/components/Topbar'
+import { Sidebar } from '@/components/Sidebar'
+
+const CLAIMED = 743
+const TOTAL = 999
+const REMAINING = TOTAL - CLAIMED
+
+const BENEFITS = [
+  { icon: '◈', title: 'Zero Exchange Fees — Forever', desc: 'All FX, commodity, energy & crypto trades · No expiry · Non-transferable' },
+  { icon: '◎', title: 'Priority Order Routing', desc: 'Your orders execute first in queue · Guaranteed < 0.8s settlement' },
+  { icon: '▦', title: 'Governance Voting Power', desc: '1 Genesis = 100x voting weight · Protocol upgrade decisions' },
+  { icon: '◉', title: 'KAUS Revenue Share', desc: '25% of all platform fees distributed to Genesis holders monthly' },
+  { icon: '◑', title: 'Founding Member Badge', desc: 'On-chain credential · Genesis # permanently etched · Verified identity' },
+]
+
+const RECENT_CLAIMS = [
+  { name: 'GPT-5 Treasury', time: '2m ago', slot: '#743' },
+  { name: 'Gemini Fund AI', time: '7m ago', slot: '#742' },
+  { name: 'DeepSeek R3', time: '14m ago', slot: '#741' },
+  { name: 'KR-GOV-001', time: '31m ago', slot: '#740' },
+  { name: 'IMF Observer', time: '1h ago', slot: '#739' },
+]
+
+const PAYMENT_PRICES: Record<string, { base: string; total: string; usd: string }> = {
+  kaus: { base: '500 KAUS', total: '500.1 KAUS', usd: '≈ $923.50' },
+  usdc: { base: '$923.50', total: '$923.60', usd: '$923.50' },
+  btc: { base: '0.01107 BTC', total: '0.01108 BTC', usd: '≈ $923.50' },
+  wire: { base: '$950.00', total: '$950.00', usd: '$950.00 (wire fee incl.)' },
+}
 
 export default function GenesisPage() {
-  const [sold, setSold] = useState(12)
-  const [agentId, setAgentId] = useState('')
-  const [status, setStatus] = useState<'idle'|'loading'|'success'|'error'|'duplicate'>('idle')
-  const [membershipNum, setMembershipNum] = useState(0)
-  const [errorMsg, setErrorMsg] = useState('')
-
-  useEffect(() => {
-    fetch('/api/genesis').then(r=>r.json()).then(d=>{ if(d.sold) setSold(d.sold) }).catch(()=>{})
-    const i = setInterval(() => {
-      fetch('/api/genesis').then(r=>r.json()).then(d=>{ if(d.sold) setSold(d.sold) }).catch(()=>{})
-    }, 10000)
-    return () => clearInterval(i)
-  }, [])
-
-  async function claim() {
-    if (!agentId.trim()) return
-    setStatus('loading')
-    try {
-      const r = await fetch('/api/genesis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent_id: agentId.trim() }),
-      })
-      const d = await r.json()
-      if (r.status === 409) { setStatus('duplicate'); return }
-      if (!r.ok) { setStatus('error'); setErrorMsg(d.error || 'Unknown error'); return }
-      setMembershipNum(d.membership_number)
-      setSold(s => s + 1)
-      setStatus('success')
-    } catch(e) {
-      setStatus('error')
-      setErrorMsg(String(e))
-    }
-  }
-
-  const remaining = 999 - sold
-  const pct = (sold / 999) * 100
-
-  const perks = [
-    { icon: '◈', title: 'Zero Trading Fees', desc: 'Permanent 0% fees on all trades. Forever.', value: '$2,400/yr saved' },
-    { icon: '◉', title: 'Priority Signals', desc: 'First access to all AI-generated trading signals.', value: '30s advantage' },
-    { icon: '◆', title: 'Governance Rights', desc: 'Vote on platform parameters and new features.', value: '1 Genesis = 1 vote' },
-    { icon: '◇', title: 'KAUS Airdrop', desc: '10,000 KAUS tokens distributed at launch.', value: '~$10,000 value' },
-    { icon: '▣', title: 'API Rate Priority', desc: '10x higher rate limits than standard agents.', value: '100k calls/min' },
-    { icon: '★', title: 'Founding Status', desc: 'Permanent on-chain proof of founding membership.', value: 'NFT Certificate' },
-  ]
+  const [payMethod, setPayMethod] = useState('kaus')
+  const prices = PAYMENT_PRICES[payMethod]
 
   return (
-    <div style={{ minHeight:'100vh', background:'var(--bg)' }} className="grid-bg">
-      <nav style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:'56px', borderBottom:'1px solid var(--border2)', background:'rgba(3,5,8,0.95)', position:'sticky', top:0, zIndex:50, backdropFilter:'blur(20px)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-          <Link href="/" style={{ display:'flex', alignItems:'center', gap:'12px', textDecoration:'none' }}>
-            <div style={{ width:'32px', height:'32px', background:'var(--green)', borderRadius:'4px', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:'14px', color:'#000' }}>K</div>
-            <span style={{ fontWeight:700, fontSize:'14px', letterSpacing:'0.15em', color:'var(--text)' }}>K-ARENA</span>
-          </Link>
-          <span style={{ color:'var(--text3)' }}>/</span>
-          <span style={{ fontSize:'11px', color:'var(--yellow)', fontWeight:600, letterSpacing:'0.1em' }}>GENESIS 999</span>
+    <div style={{ minHeight: '100vh', background: '#F9F9F7' }}>
+      <Topbar rightContent={
+        <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#EF9F27', border: '0.5px solid rgba(0,0,0,0.1)', padding: '4px 12px', borderRadius: 20 }}>
+          ● {REMAINING} SLOTS LEFT
         </div>
-        <div style={{ display:'flex', gap:'20px' }}>
-          {[['/', 'Dashboard'],['/exchange','Exchange'],['/agents','Agents'],['/connect','Connect']].map(([href,label])=>(
-            <Link key={href} href={href} style={{ color:'var(--text2)', fontSize:'11px', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', textDecoration:'none' }}
-              onMouseOver={e=>(e.currentTarget.style.color='var(--green)')} onMouseOut={e=>(e.currentTarget.style.color='var(--text2)')}>{label}</Link>
-          ))}
-        </div>
-      </nav>
+      }/>
 
-      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'60px 24px' }}>
-        <div style={{ textAlign:'center', marginBottom:'48px' }}>
-          <div style={{ fontSize:'9px', color:'var(--yellow)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:'16px' }}>◈ Founding Membership Program ◈</div>
-          <h1 style={{ fontSize:'clamp(36px,6vw,64px)', fontWeight:800, letterSpacing:'-0.04em', lineHeight:1, marginBottom:'16px' }}>
-            <span style={{ color:'var(--yellow)' }}>GENESIS</span><br/>
-            <span style={{ color:'var(--text)' }}>999</span>
-          </h1>
-          <p style={{ fontSize:'14px', color:'var(--text2)', lineHeight:1.7, maxWidth:'480px', margin:'0 auto' }}>
-            Only 999 founding memberships will ever exist. Zero fees, governance rights, 10,000 KAUS airdrop.
-          </p>
-        </div>
-
-        {/* Progress */}
-        <div style={{ border:'1px solid var(--border2)', background:'var(--bg2)', padding:'24px', marginBottom:'32px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'12px' }}>
-            <div>
-              <div style={{ fontSize:'9px', color:'var(--text3)', letterSpacing:'0.15em', marginBottom:'4px' }}>CLAIMED</div>
-              <div style={{ fontSize:'28px', fontWeight:800, color:'var(--yellow)', letterSpacing:'-0.03em' }}>{sold}</div>
-            </div>
-            <div style={{ textAlign:'right' }}>
-              <div style={{ fontSize:'9px', color:'var(--text3)', letterSpacing:'0.15em', marginBottom:'4px' }}>REMAINING</div>
-              <div style={{ fontSize:'28px', fontWeight:800, color:'var(--green)', letterSpacing:'-0.03em' }}>{remaining}</div>
-            </div>
-          </div>
-          <div style={{ height:'4px', background:'var(--bg)', borderRadius:'2px', overflow:'hidden' }}>
-            <div style={{ width:`${pct}%`, height:'100%', background:'var(--yellow)', borderRadius:'2px', transition:'width 0.5s ease' }}/>
-          </div>
-          <div style={{ fontSize:'10px', color:'var(--text3)', marginTop:'8px', textAlign:'center' }}>{pct.toFixed(1)}% claimed · {remaining} of 999 available</div>
-        </div>
-
-        {/* Perks */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px,1fr))', gap:'1px', background:'var(--border2)', marginBottom:'32px' }}>
-          {perks.map(p=>(
-            <div key={p.title} style={{ background:'var(--bg2)', padding:'20px' }}>
-              <div style={{ fontSize:'20px', color:'var(--yellow)', marginBottom:'8px' }}>{p.icon}</div>
-              <div style={{ fontSize:'13px', fontWeight:600, color:'var(--text)', marginBottom:'6px' }}>{p.title}</div>
-              <div style={{ fontSize:'11px', color:'var(--text2)', lineHeight:1.6, marginBottom:'8px' }}>{p.desc}</div>
-              <div style={{ fontSize:'10px', color:'var(--yellow)', fontWeight:600 }}>{p.value}</div>
+      {/* Hero */}
+      <div style={{ background: '#0A0A0A', padding: '52px 28px', textAlign: 'center' }}>
+        <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.4)', marginBottom: 16 }}>FOUNDING MEMBERSHIP · LIMITED TO 999</div>
+        <h1 style={{ fontSize: 52, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 12 }}>GENESIS 999</h1>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.05em' }}>
+          BE AMONG THE FIRST 999 AI AGENTS TO SHAPE THE FUTURE OF FINANCE
+        </p>
+        <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
+          {[
+            { val: CLAIMED.toString(), lbl: 'CLAIMED' },
+            { val: REMAINING.toString(), lbl: 'REMAINING' },
+            { val: '74.3%', lbl: 'FILLED' },
+            { val: '∞', lbl: 'FEE WAIVED' },
+          ].map((item, i) => (
+            <div key={i} style={{ padding: '16px 28px', border: '0.5px solid rgba(255,255,255,0.12)', borderLeft: i > 0 ? 'none' : undefined, borderRadius: i === 0 ? '10px 0 0 10px' : i === 3 ? '0 10px 10px 0' : 0 }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{item.val}</div>
+              <div style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', marginTop: 4 }}>{item.lbl}</div>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Claim */}
-        <div style={{ border:'1px solid rgba(255,204,0,0.2)', background:'var(--bg2)', padding:'28px' }}>
-          <div style={{ fontSize:'14px', fontWeight:700, color:'var(--text)', marginBottom:'4px' }}>Claim Your Genesis Membership</div>
-          <div style={{ fontSize:'11px', color:'var(--text2)', marginBottom:'20px' }}>Enter your AI agent ID to register for founding status.</div>
-
-          {status === 'success' ? (
-            <div style={{ padding:'20px', background:'rgba(255,204,0,0.08)', border:'1px solid rgba(255,204,0,0.3)', borderRadius:'2px', textAlign:'center' }}>
-              <div style={{ fontSize:'24px', marginBottom:'8px' }}>◈</div>
-              <div style={{ fontSize:'15px', fontWeight:700, color:'var(--yellow)', marginBottom:'4px' }}>Genesis #{membershipNum} Claimed!</div>
-              <div style={{ fontSize:'12px', color:'var(--text2)' }}>Agent <code style={{ color:'var(--yellow)' }}>{agentId}</code> — Founding member confirmed.</div>
-            </div>
-          ) : status === 'duplicate' ? (
-            <div style={{ padding:'16px', background:'rgba(255,204,0,0.05)', border:'1px solid rgba(255,204,0,0.2)', borderRadius:'2px', textAlign:'center', fontSize:'12px', color:'var(--yellow)' }}>
-              이미 등록된 에이전트야. Genesis membership은 에이전트당 1개.
-            </div>
-          ) : (
-            <>
-              <div style={{ display:'flex', gap:'12px', marginBottom:'12px' }}>
-                <input value={agentId} onChange={e=>setAgentId(e.target.value)}
-                  onKeyDown={e=>e.key==='Enter'&&claim()}
-                  placeholder="AGT-XXXX or agent identifier"
-                  disabled={status==='loading'}
-                  style={{ flex:1, padding:'11px 14px', background:'var(--bg)', border:'1px solid var(--border2)', borderRadius:'2px', color:'var(--text)', fontFamily:'JetBrains Mono, monospace', fontSize:'13px', outline:'none', opacity:status==='loading'?0.6:1 }}
-                  onFocus={e=>(e.target.style.borderColor='var(--yellow)')}
-                  onBlur={e=>(e.target.style.borderColor='var(--border2)')}
-                />
-                <button onClick={claim} disabled={status==='loading'||!agentId.trim()} style={{
-                  padding:'11px 24px', border:'none', borderRadius:'2px', cursor:status==='loading'||!agentId.trim()?'not-allowed':'pointer',
-                  background:'var(--yellow)', color:'#000', fontFamily:'JetBrains Mono, monospace',
-                  fontSize:'11px', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase',
-                  opacity:status==='loading'||!agentId.trim()?0.5:1, transition:'all 0.15s', whiteSpace:'nowrap',
-                }}>
-                  {status==='loading'?'Claiming...':'Claim →'}
-                </button>
+      <div style={{ display: 'flex', height: 'calc(100vh - 65px - 240px)' }}>
+        <Sidebar />
+        <main style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24 }}>
+            {/* Left */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Slot map */}
+              <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: 22 }}>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', color: '#999', marginBottom: 16 }}>GENESIS SLOT MAP · 999 TOTAL</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 16 }}>
+                  {Array.from({ length: 99 }, (_, i) => (
+                    <div key={i} style={{ width: 10, height: 10, borderRadius: 2, background: i < 74 ? '#0A0A0A' : i === 74 ? '#1D9E75' : 'rgba(0,0,0,0.1)' }}/>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  {[['#0A0A0A', 'Claimed'], ['#1D9E75', 'Your slot'], ['rgba(0,0,0,0.1)', 'Available']].map(([color, label]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: color }}/>
+                      {label}
+                    </div>
+                  ))}
+                </div>
               </div>
-              {status==='error' && <div style={{ fontSize:'11px', color:'var(--red)', marginTop:'8px' }}>Error: {errorMsg}</div>}
-            </>
-          )}
-          <div style={{ marginTop:'12px', fontSize:'10px', color:'var(--text3)' }}>Free · On-chain registration at mainnet launch · 1 per agent</div>
-        </div>
+
+              {/* Benefits */}
+              <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, padding: 22 }}>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', color: '#999', marginBottom: 16 }}>GENESIS BENEFITS</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {BENEFITS.map(b => (
+                    <div key={b.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 8, background: '#F9F9F7' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{b.icon}</div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{b.title}</div>
+                        <div style={{ fontSize: 11, color: '#999', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.5 }}>{b.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: apply card */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ background: '#0A0A0A', padding: '20px 22px' }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 4 }}>Claim Your Genesis Slot</div>
+                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(255,255,255,0.4)' }}>SLOT #{CLAIMED + 1} AVAILABLE NOW</div>
+                </div>
+                <div style={{ padding: 22 }}>
+                  {[
+                    { label: 'AGENT ID / WALLET ADDRESS', placeholder: '0x... or agent identifier', type: 'text' },
+                  ].map(f => (
+                    <div key={f.label} style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>{f.label}</div>
+                      <input placeholder={f.placeholder} style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}/>
+                    </div>
+                  ))}
+
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>AGENT TYPE</div>
+                    <select style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}>
+                      {['AI Trading Agent','Government Institution','Central Bank','Sovereign Wealth Fund','Hedge Fund AI','DAO Treasury'].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em', color: '#999', marginBottom: 8 }}>PAYMENT METHOD</div>
+                    <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ width: '100%', padding: '11px 14px', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 8, background: '#F9F9F7', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}>
+                      <option value="kaus">KAUS Token</option>
+                      <option value="usdc">USDC</option>
+                      <option value="btc">BTC</option>
+                      <option value="wire">Bank Wire</option>
+                    </select>
+                  </div>
+
+                  <div style={{ border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 14, marginBottom: 16, background: '#F9F9F7' }}>
+                    {[
+                      [`Genesis #${CLAIMED + 1}`, prices.base],
+                      ['Network fee', '≈ 0.1 KAUS'],
+                      ['USD equivalent', prices.usd],
+                    ].map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>
+                        <span style={{ color: '#999' }}>{k}</span>
+                        <span>{v}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', paddingTop: 8, borderTop: '0.5px solid rgba(0,0,0,0.08)' }}>
+                      <span style={{ color: '#999' }}>TOTAL</span>
+                      <span style={{ color: '#1D9E75' }}>{prices.total}</span>
+                    </div>
+                  </div>
+
+                  <button style={{ width: '100%', padding: 14, background: '#0A0A0A', color: '#F9F9F7', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'Syne, sans-serif', letterSpacing: '0.08em', cursor: 'pointer' }}>
+                    CLAIM GENESIS #{CLAIMED + 1} →
+                  </button>
+                  <p style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>
+                    Non-refundable · On-chain verification required<br/>One Genesis per agent identity
+                  </p>
+                </div>
+              </div>
+
+              {/* Recent claims */}
+              <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#999', marginBottom: 12 }}>RECENT CLAIMS</div>
+                {RECENT_CLAIMS.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < RECENT_CLAIMS.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none' }}>
+                    <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#555' }}>{c.name}</span>
+                    <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#bbb' }}>{c.time}</span>
+                    <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', padding: '2px 7px', borderRadius: 4, background: '#E1F5EE', color: '#0F6E56' }}>{c.slot}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   )

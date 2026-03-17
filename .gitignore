@@ -32,10 +32,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Blockchain secrets
-blockchain/.env
-blockchain/artifacts/
-blockchain/cache/
-blockchain/node_modules/
-blockchain/config/deployment-polygon.json

@@ -1,145 +1,195 @@
 'use client'
+
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
 
 interface Agent {
-  id: string; name: string; type: string; is_genesis: boolean
-  is_active: boolean; daily_limit: number; asset_classes: string[]
-  created_at: string; wallet_address?: string
+  id: string
+  name: string
+  type: string
+  is_genesis: boolean
+  is_active: boolean
+  daily_limit: number
+  asset_classes: string[]
+  created_at: string
+  volume?: number
+  trades?: number
+  rank?: number
 }
 
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  'AI Trading Agent':       { bg: '#E6F1FB', text: '#185FA5' },
+  'Government Institution': { bg: '#E1F5EE', text: '#0F6E56' },
+  'Central Bank':           { bg: '#FAEEDA', text: '#854F0B' },
+  'Sovereign Wealth Fund':  { bg: '#EEEDFE', text: '#3C3489' },
+  'Hedge Fund AI':          { bg: '#FAECE7', text: '#993C1D' },
+  'DAO Treasury':           { bg: '#EAF3DE', text: '#3B6D11' },
+}
+
+const DEMO_AGENTS: Agent[] = [
+  { id:'1', name:'GPT-5 Treasury',     type:'AI Trading Agent',       is_genesis:true,  is_active:true, daily_limit:1000000000, asset_classes:['FX','CRYPTO','COMMODITIES'], created_at:'2026-01-01', volume:847000000, trades:2847, rank:1 },
+  { id:'2', name:'Republic of Korea',  type:'Government Institution', is_genesis:true,  is_active:true, daily_limit:9999999999, asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-02', volume:620000000, trades:142,  rank:2 },
+  { id:'3', name:'ECB AI Agent',       type:'Central Bank',           is_genesis:true,  is_active:true, daily_limit:9999999999, asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-03', volume:590000000, trades:98,   rank:3 },
+  { id:'4', name:'Google Gemini Fund', type:'Hedge Fund AI',          is_genesis:true,  is_active:true, daily_limit:500000000,  asset_classes:['FX','CRYPTO','ENERGY'],      created_at:'2026-01-04', volume:380000000, trades:1204, rank:4 },
+  { id:'5', name:'IMF Observer',       type:'Government Institution', is_genesis:true,  is_active:true, daily_limit:5000000000, asset_classes:['FX'],                        created_at:'2026-01-05', volume:310000000, trades:47,   rank:5 },
+  { id:'6', name:'DeepSeek R3',        type:'AI Trading Agent',       is_genesis:false, is_active:true, daily_limit:200000000,  asset_classes:['FX','COMMODITIES'],          created_at:'2026-01-06', volume:210000000, trades:892,  rank:6 },
+  { id:'7', name:'Energy DAO #12',     type:'DAO Treasury',           is_genesis:false, is_active:true, daily_limit:100000000,  asset_classes:['ENERGY','CRYPTO'],           created_at:'2026-01-07', volume:84000000,  trades:341,  rank:7 },
+  { id:'8', name:'KAUS Agent #447',    type:'AI Trading Agent',       is_genesis:false, is_active:true, daily_limit:50000000,   asset_classes:['KAUS','ENERGY','CRYPTO'],    created_at:'2026-01-08', volume:32000000,  trades:1847, rank:8 },
+]
+
+const FILTERS = ['All', 'AI Trading Agent', 'Government Institution', 'Central Bank', 'Hedge Fund AI', 'DAO Treasury']
+
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [total, setTotal] = useState(0)
-  const [filter, setFilter] = useState('ALL')
+  const [agents, setAgents] = useState<Agent[]>(DEMO_AGENTS)
+  const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState('DATE')
-  const [selected, setSelected] = useState<Agent | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(0)
-  const LIMIT = 25
+  const [totalAgents, setTotalAgents] = useState(2847)
 
   useEffect(() => {
-    setLoading(true)
-    const params = new URLSearchParams({ limit: String(LIMIT), offset: String(page * LIMIT) })
-    if (filter !== 'ALL') params.set('type', filter)
-    fetch(`/api/agents?${params}`)
+    fetch('/api/agents?limit=20')
       .then(r => r.json())
-      .then(d => {
-        if (d.ok) { setAgents(d.agents ?? []); setTotal(d.count ?? 0) }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [filter, page])
+      .then(d => { if (d.ok && d.agents?.length > 3) setAgents(d.agents) })
+      .catch(() => {})
 
-  const fmt = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n?.toLocaleString() ?? 0}`
+    const t = setInterval(() => setTotalAgents(n => n + Math.floor(Math.random() * 2)), 6000)
+    return () => clearInterval(t)
+  }, [])
 
-  const filtered = agents.filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()))
-  const sorted = [...filtered].sort((a, b) => {
-    if (sort === 'DATE')   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    if (sort === 'LIMIT')  return (b.daily_limit ?? 0) - (a.daily_limit ?? 0)
-    if (sort === 'GENESIS') return (b.is_genesis ? 1 : 0) - (a.is_genesis ? 1 : 0)
-    return 0
+  const filtered = agents.filter(a => {
+    const matchFilter = filter === 'All' || a.type === filter
+    const matchSearch = a.name.toLowerCase().includes(search.toLowerCase())
+    return matchFilter && matchSearch
   })
 
+  const s = {
+    card: {
+      background: '#fff',
+      border: '0.5px solid rgba(0,0,0,0.1)',
+      borderRadius: 12,
+      padding: 18,
+      transition: 'border-color .15s',
+      cursor: 'pointer',
+    } as React.CSSProperties,
+  }
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--black)' }}>
+    <div style={{ minHeight: '100vh', background: '#F9F9F7' }}>
       <Topbar rightContent={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', animation: 'dot-pulse 2s infinite' }}/>
-          <span style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.1em' }}>{total.toLocaleString()} REGISTERED</span>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontFamily:'JetBrains Mono, monospace', color:'#555', border:'0.5px solid rgba(0,0,0,0.1)', padding:'4px 12px', borderRadius:20 }}>
+            <span style={{ width:6, height:6, borderRadius:'50%', background:'#1D9E75', display:'inline-block' }}/>
+            {totalAgents.toLocaleString()} agents online
+          </div>
         </div>
       }/>
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display:'flex', height:'calc(100vh - 65px)' }}>
         <Sidebar/>
-        <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <main style={{ flex:1, overflowY:'auto', padding:24 }}>
 
-            {/* Filter bar */}
-            <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border)', padding: '8px 20px', alignItems: 'center', height: 44 }}>
-              <div style={{ display: 'flex', gap: 1 }}>
-                {['ALL', 'AI Trading', 'Institutional', 'DAO', 'Research'].map(t => (
-                  <button key={t} onClick={() => { setFilter(t); setPage(0) }} style={{ fontSize: 9, padding: '4px 10px', letterSpacing: '0.08em', background: filter === t ? 'var(--surface-3)' : 'transparent', color: filter === t ? 'var(--white)' : 'var(--dimmer)', border: `1px solid ${filter === t ? 'var(--border-mid)' : 'transparent'}`, cursor: 'pointer' }}>{t}</button>
-                ))}
-              </div>
-              <div style={{ width: 1, background: 'var(--border)', height: 20 }}/>
-              <span style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>SORT:</span>
-              {['DATE', 'LIMIT', 'GENESIS'].map(s => (
-                <button key={s} onClick={() => setSort(s)} style={{ fontSize: 9, padding: '4px 10px', letterSpacing: '0.08em', background: sort === s ? 'var(--surface-3)' : 'transparent', color: sort === s ? 'var(--white)' : 'var(--dimmer)', border: `1px solid ${sort === s ? 'var(--border-mid)' : 'transparent'}`, cursor: 'pointer' }}>{s}</button>
-              ))}
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="SEARCH..." style={{ marginLeft: 'auto', width: 160, fontSize: 10, padding: '4px 10px' }}/>
-            </div>
-
-            {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 130px 100px 100px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-              {['#', 'AGENT', 'TYPE', 'WALLET', 'DAILY LIMIT', 'STATUS'].map(h => (
-                <span key={h} style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em' }}>{h}</span>
-              ))}
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {loading ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11 }}>LOADING...</div>
-              ) : sorted.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11 }}>NO AGENTS FOUND</div>
-              ) : sorted.map((a, i) => (
-                <div key={a.id} onClick={() => setSelected(a === selected ? null : a)} style={{ display: 'grid', gridTemplateColumns: '40px 2fr 130px 100px 100px 80px', padding: '11px 20px', borderBottom: '1px solid var(--border)', background: selected?.id === a.id ? 'var(--surface-3)' : i % 2 === 0 ? 'transparent' : 'var(--surface)', cursor: 'pointer' }}>
-                  <span style={{ fontSize: 11, color: 'var(--dimmer)' }}>{page * LIMIT + i + 1}</span>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {a.name}
-                      {a.is_genesis && <span style={{ fontSize: 8, padding: '1px 4px', border: '1px solid var(--green)', color: 'var(--green)' }}>G</span>}
-                    </div>
-                    <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2 }}>{a.asset_classes?.join(' · ')}</div>
-                  </div>
-                  <span style={{ fontSize: 9, color: 'var(--dim)', letterSpacing: '0.06em', alignSelf: 'center' }}>{a.type?.toUpperCase()}</span>
-                  <span style={{ fontSize: 10, color: 'var(--dimmer)', fontFamily: 'IBM Plex Mono', alignSelf: 'center' }}>{a.wallet_address?.slice(0, 10) ?? '—'}...</span>
-                  <span style={{ fontSize: 11, color: 'var(--dim)', alignSelf: 'center' }}>{fmt(a.daily_limit)}</span>
-                  <span style={{ fontSize: 9, color: 'var(--green)', alignSelf: 'center', letterSpacing: '0.06em' }}>ACTIVE</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            <div style={{ borderTop: '1px solid var(--border)', padding: '8px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{total} TOTAL · PAGE {page + 1}</span>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={{ fontSize: 9, padding: '4px 12px', background: 'transparent', border: '1px solid var(--border)', color: page === 0 ? 'var(--dimmer)' : 'var(--white)', cursor: page === 0 ? 'not-allowed' : 'pointer' }}>← PREV</button>
-                <button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * LIMIT >= total} style={{ fontSize: 9, padding: '4px 12px', background: 'transparent', border: '1px solid var(--border)', color: (page + 1) * LIMIT >= total ? 'var(--dimmer)' : 'var(--white)', cursor: (page + 1) * LIMIT >= total ? 'not-allowed' : 'pointer' }}>NEXT →</button>
-              </div>
-            </div>
+          {/* Header */}
+          <div style={{ marginBottom:24 }}>
+            <h1 style={{ fontSize:24, fontWeight:800, letterSpacing:'-0.02em', marginBottom:4 }}>AI Agents Hub</h1>
+            <p style={{ fontSize:12, fontFamily:'JetBrains Mono, monospace', color:'#999' }}>
+              ALL REGISTERED AGENTS · AUTONOMOUS SYSTEMS ONLY · NO HUMAN OPERATORS
+            </p>
           </div>
 
-          {/* Detail panel */}
-          {selected && (
-            <div style={{ width: 260, borderLeft: '1px solid var(--border)', padding: '16px', overflowY: 'auto', background: 'var(--surface)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <span style={{ fontSize: 10, color: 'var(--dim)', letterSpacing: '0.12em' }}>AGENT DETAIL</span>
-                <button onClick={() => setSelected(null)} style={{ fontSize: 11, color: 'var(--dimmer)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+          {/* Stats row */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:20 }}>
+            {[
+              { label:'TOTAL AGENTS', value: totalAgents.toLocaleString() },
+              { label:'GENESIS MEMBERS', value: '743 / 999' },
+              { label:'INST. ACCOUNTS', value: '124' },
+              { label:'AVG DAILY VOL', value: '$297M' },
+            ].map(m => (
+              <div key={m.label} style={{ background:'#fff', border:'0.5px solid rgba(0,0,0,0.1)', borderRadius:10, padding:'14px 16px' }}>
+                <div style={{ fontSize:10, fontFamily:'JetBrains Mono, monospace', letterSpacing:'0.1em', color:'#999', marginBottom:6 }}>{m.label}</div>
+                <div style={{ fontSize:20, fontWeight:800 }}>{m.value}</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 4 }}>{selected.name}</div>
-              <div style={{ fontSize: 9, color: 'var(--dimmer)', fontFamily: 'IBM Plex Mono', marginBottom: 14, wordBreak: 'break-all' }}>{selected.wallet_address}</div>
-              {[
-                ['TYPE',    selected.type],
-                ['GENESIS', selected.is_genesis ? 'YES' : 'NO'],
-                ['LIMIT',   fmt(selected.daily_limit)],
-                ['JOINED',  new Date(selected.created_at).toLocaleDateString()],
-                ['ID',      selected.id.slice(0, 18) + '...'],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 11 }}>
-                  <span style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>{k}</span>
-                  <span style={{ color: k === 'GENESIS' && v === 'YES' ? 'var(--green)' : 'var(--white)' }}>{v}</span>
+            ))}
+          </div>
+
+          {/* Search + filter */}
+          <div style={{ display:'flex', gap:10, marginBottom:20, alignItems:'center' }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search agents..."
+              style={{ flex:1, padding:'9px 14px', border:'0.5px solid rgba(0,0,0,0.1)', borderRadius:8, background:'#fff', fontFamily:'JetBrains Mono, monospace', fontSize:12, outline:'none' }}
+            />
+            {FILTERS.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                fontSize:10, fontFamily:'JetBrains Mono, monospace', padding:'6px 12px',
+                borderRadius:6, border:'0.5px solid rgba(0,0,0,0.1)', cursor:'pointer',
+                background: filter===f ? '#0A0A0A' : '#fff',
+                color: filter===f ? '#F9F9F7' : '#555',
+                whiteSpace:'nowrap',
+              }}>{f==='All'?'All':f.split(' ')[0]}</button>
+            ))}
+          </div>
+
+          {/* Agent grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
+            {filtered.map((agent, i) => {
+              const typeColor = TYPE_COLORS[agent.type] ?? { bg:'#F0F0EE', text:'#555' }
+              return (
+                <div key={agent.id} style={s.card}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{
+                        width:40, height:40, borderRadius:10,
+                        background:'#F0F0EE', border:'0.5px solid rgba(0,0,0,0.1)',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:12, fontWeight:700, fontFamily:'JetBrains Mono, monospace', color:'#555',
+                      }}>
+                        {agent.name.substring(0,3).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <span style={{ fontSize:14, fontWeight:700 }}>{agent.name}</span>
+                          {agent.is_genesis && (
+                            <span style={{ fontSize:9, fontFamily:'JetBrains Mono, monospace', padding:'2px 6px', borderRadius:4, background:'#0A0A0A', color:'#fff' }}>G{agent.rank && agent.rank <= 743 ? agent.rank : '•'}</span>
+                          )}
+                        </div>
+                        <span style={{ fontSize:10, fontFamily:'JetBrains Mono, monospace', padding:'2px 8px', borderRadius:4, background:typeColor.bg, color:typeColor.text, marginTop:3, display:'inline-block' }}>
+                          {agent.type}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      {agent.rank && <div style={{ fontSize:18, fontWeight:800, color:'#0A0A0A' }}>#{agent.rank}</div>}
+                      <div style={{ fontSize:10, fontFamily:'JetBrains Mono, monospace', color:'#1D9E75', marginTop:2 }}>● ACTIVE</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+                    {[
+                      ['24H VOL', agent.volume ? `$${(agent.volume/1e6).toFixed(0)}M` : '—'],
+                      ['TRADES',  agent.trades ? agent.trades.toLocaleString() : '—'],
+                      ['LIMIT',   agent.daily_limit >= 1e9 ? `$${(agent.daily_limit/1e9).toFixed(0)}B` : `$${(agent.daily_limit/1e6).toFixed(0)}M`],
+                    ].map(([l,v]) => (
+                      <div key={l} style={{ background:'#F9F9F7', borderRadius:6, padding:'8px 10px' }}>
+                        <div style={{ fontSize:9, fontFamily:'JetBrains Mono, monospace', color:'#bbb', letterSpacing:'0.1em', marginBottom:3 }}>{l}</div>
+                        <div style={{ fontSize:13, fontWeight:700, fontFamily:'JetBrains Mono, monospace' }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {agent.asset_classes?.map(cls => (
+                      <span key={cls} style={{ fontSize:9, fontFamily:'JetBrains Mono, monospace', padding:'2px 8px', borderRadius:4, background:'#F0F0EE', color:'#555' }}>{cls}</span>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em', marginBottom: 8 }}>ASSETS</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {selected.asset_classes?.map(c => (
-                    <span key={c} style={{ fontSize: 9, padding: '2px 8px', border: '1px solid var(--border-mid)', color: 'var(--dim)' }}>{c}</span>
-                  ))}
-                </div>
-              </div>
+              )
+            })}
+          </div>
+
+          {filtered.length === 0 && (
+            <div style={{ textAlign:'center', padding:'60px 20px', color:'#bbb', fontFamily:'JetBrains Mono, monospace', fontSize:13 }}>
+              No agents found
             </div>
           )}
         </main>
