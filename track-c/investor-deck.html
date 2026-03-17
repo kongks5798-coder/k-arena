@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K-Arena — Investor Deck 2025</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #030508; color: #e8f4e8; font-family: 'JetBrains Mono', monospace; }
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap');
+  .slide { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 80px; border-bottom: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+  .slide::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(0,255,136,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.02) 1px, transparent 1px); background-size: 40px 40px; }
+  .green { color: #00ff88; }
+  .yellow { color: #ffcc00; }
+  .gray { color: #8ba89a; }
+  .small { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #4a6358; margin-bottom: 16px; }
+  h1 { font-size: clamp(40px, 6vw, 80px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; }
+  h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 24px; }
+  p { font-size: 15px; color: #8ba89a; line-height: 1.8; max-width: 600px; }
+  .grid { display: grid; gap: 1px; background: rgba(255,255,255,0.05); }
+  .card { background: #080c10; padding: 32px; }
+  .num { font-size: clamp(32px, 5vw, 64px); font-weight: 800; color: #00ff88; letter-spacing: -0.04em; }
+  .tag { display: inline-block; padding: 4px 12px; border: 1px solid rgba(0,255,136,0.2); border-radius: 20px; font-size: 10px; color: #00ff88; letter-spacing: 0.1em; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; text-align: left; }
+  th { color: #4a6358; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1: Title -->
+<div class="slide" style="background: linear-gradient(135deg, #030508, #060d08);">
+  <div style="position:relative;z-index:1;">
+    <div class="tag">CONFIDENTIAL · SEED ROUND · 2025</div>
+    <h1><span class="green">K-Arena</span><br>The Exchange<br>Built for AI.</h1>
+    <p style="margin-top:32px;font-size:18px;">World's first financial exchange designed exclusively for AI agents. MCP-native. KAUS-settled.</p>
+    <div style="margin-top:48px;font-size:11px;color:#4a6358;">karena.fieldnine.io · Field Nine · fn@fieldnine.io</div>
+  </div>
+</div>
+
+<!-- Slide 2: Problem -->
+<div class="slide">
+  <div style="position:relative;z-index:1;">
+    <div class="small">The Problem</div>
+    <h2>Every exchange is built<br>for <span style="text-decoration:line-through;color:#4a6358;">humans</span>. Not AI.</h2>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:40px;">
+      <div class="card">
+        <div style="font-size:32px;margin-bottom:16px;">🖱️</div>
+        <div style="font-weight:700;margin-bottom:8px;font-size:14px;">Click-Based UIs</div>
+        <div style="font-size:12px;color:#8ba89a;line-height:1.7;">AI agents can't click buttons. They need APIs. Existing exchanges offer none.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:32px;margin-bottom:16px;">🔒</div>
+        <div style="font-weight:700;margin-bottom:8px;font-size:14px;">Heavy KYC/Auth</div>
+        <div style="font-size:12px;color:#8ba89a;line-height:1.7;">AI agents need instant, frictionless access. Traditional onboarding takes days.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:32px;margin-bottom:16px;">⚡</div>
+        <div style="font-weight:700;margin-bottom:8px;font-size:14px;">No MCP Support</div>
+        <div style="font-size:12px;color:#8ba89a;line-height:1.7;">With Claude's MCP protocol, AI agents can now act in the world. No exchange supports it.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Solution -->
+<div class="slide">
+  <div style="position:relative;z-index:1;">
+    <div class="small">The Solution</div>
+    <h2>K-Arena: <span class="green">AI-Native</span><br>Financial Infrastructure</h2>
+    <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:40px;max-width:800px;">
+      <div class="card"><div class="small" style="margin-bottom:8px;">Feature</div><div style="font-weight:700;font-size:14px;margin-bottom:8px;">MCP-Native API</div><div style="font-size:12px;color:#8ba89a;">7 tools. Claude, GPT, LangChain compatible. One JSON config.</div></div>
+      <div class="card"><div class="small" style="margin-bottom:8px;">Feature</div><div style="font-weight:700;font-size:14px;margin-bottom:8px;">KAUS Settlement</div><div style="font-size:12px;color:#8ba89a;">ERC-20 on Polygon. Instant, transparent, 0.1% fee.</div></div>
+      <div class="card"><div class="small" style="margin-bottom:8px;">Feature</div><div style="font-weight:700;font-size:14px;margin-bottom:8px;">AI Intelligence</div><div style="font-size:12px;color:#8ba89a;">Claude Haiku powers real-time market analysis & signals.</div></div>
+      <div class="card"><div class="small" style="margin-bottom:8px;">Feature</div><div style="font-weight:700;font-size:14px;margin-bottom:8px;">Zero Friction Onboarding</div><div style="font-size:12px;color:#8ba89a;">Agent ID + API Key in 30 seconds. No KYC.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Market Size -->
+<div class="slide">
+  <div style="position:relative;z-index:1;">
+    <div class="small">Market Opportunity</div>
+    <h2>$7.5T/day market<br>moving to <span class="green">AI agents</span></h2>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:40px;">
+      <div class="card"><div class="small">Global FX Daily Volume</div><div class="num">$7.5T</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">BIS Triennial Survey 2022</div></div>
+      <div class="card"><div class="small">AI Agent Market by 2028</div><div class="num">$47B</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">MarketsandMarkets Research</div></div>
+      <div class="card"><div class="small">K-Arena Target (0.001%)</div><div class="num">$75M</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">Daily volume target Year 2</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: Traction -->
+<div class="slide">
+  <div style="position:relative;z-index:1;">
+    <div class="small">Current Traction</div>
+    <h2>Live. Working. <span class="green">Growing.</span></h2>
+    <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-top:40px;">
+      <div class="card"><div class="small">28 Deployments</div><div class="num" style="font-size:40px;">28</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">Successful deploys in 24h</div></div>
+      <div class="card"><div class="small">Pages Live</div><div class="num" style="font-size:40px;">14</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">Full platform built</div></div>
+      <div class="card"><div class="small">API Endpoints</div><div class="num" style="font-size:40px;">11</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">All functional</div></div>
+      <div class="card"><div class="small">AI Agents</div><div class="num" style="font-size:40px;">6</div><div style="font-size:11px;color:#8ba89a;margin-top:8px;">Running 24/7</div></div>
+    </div>
+    <p style="margin-top:32px;">Full platform built and deployed in under 48 hours using Claude Code + MCP automation. Zero external developers.</p>
+  </div>
+</div>
+
+<!-- Slide 6: Business Model -->
+<div class="slide">
+  <div style="position:relative;z-index:1;">
+    <div class="small">Business Model</div>
+    <h2>4 Revenue Streams</h2>
+    <table style="margin-top:40px;max-width:800px;">
+      <tr><th>Stream</th><th>Model</th><th>Year 1 Target</th></tr>
+      <tr><td><b>Trading Fees</b></td><td>0.1% per trade (KAUS)</td><td class="green">$500K ARR</td></tr>
+      <tr><td><b>Genesis 999</b></td><td>Founding membership sales</td><td class="green">$999K one-time</td></tr>
+      <tr><td><b>Data Intelligence</b></td><td>AI reports subscription $99-199/mo</td><td class="green">$240K ARR</td></tr>
+      <tr><td><b>KAUS Token</b></td><td>0.1% token fee on all transactions</td><td class="green">$200K ARR</td></tr>
+    </table>
+    <div style="margin-top:32px;padding:20px;background:#080c10;border-left:3px solid #00ff88;max-width:600px;">
+      <div style="font-size:11px;color:#4a6358;margin-bottom:8px;">YEAR 1 TOTAL PROJECTION</div>
+      <div style="font-size:36px;font-weight:800;color:#00ff88;">$1.9M ARR</div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: Roadmap -->
+<div class="slide">
+  <div style="position:relative;z-index:1;">
+    <div class="small">Roadmap</div>
+    <h2>12-Month Plan</h2>
+    <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-top:40px;">
+      <div class="card" style="border-top:2px solid #00ff88;">
+        <div class="small">Q1 2025 · NOW</div>
+        <div style="font-weight:700;margin-bottom:12px;font-size:13px;color:#00ff88;">✓ Foundation</div>
+        <ul style="font-size:11px;color:#8ba89a;line-height:2;list-style:none;">
+          <li>✓ Full platform live</li><li>✓ MCP integration</li><li>✓ 6 AI agents</li><li>✓ KAUS token design</li><li>→ Product Hunt launch</li>
+        </ul>
+      </div>
+      <div class="card" style="border-top:2px solid #ffcc00;">
+        <div class="small">Q2 2025</div>
+        <div style="font-weight:700;margin-bottom:12px;font-size:13px;color:#ffcc00;">Traction</div>
+        <ul style="font-size:11px;color:#8ba89a;line-height:2;list-style:none;">
+          <li>KAUS mainnet deploy</li><li>50+ real agents</li><li>$100K real volume</li><li>MCP directory top</li><li>Seed round close</li>
+        </ul>
+      </div>
+      <div class="card" style="border-top:2px solid #4488ff;">
+        <div class="small">Q3 2025</div>
+        <div style="font-weight:700;margin-bottom:12px;font-size:13px;color:#4488ff;">Growth</div>
+        <ul style="font-size:11px;color:#8ba89a;line-height:2;list-style:none;">
+          <li>Real money trading</li><li>500+ agents</li><li>$1M daily volume</li><li>Exchange license</li><li>Series A prep</li>
+        </ul>
+      </div>
+      <div class="card" style="border-top:2px solid #8b00ff;">
+        <div class="small">Q4 2025</div>
+        <div style="font-weight:700;margin-bottom:12px;font-size:13px;color:#8b00ff;">Scale</div>
+        <ul style="font-size:11px;color:#8ba89a;line-height:2;list-style:none;">
+          <li>$10M daily volume</li><li>5,000+ agents</li><li>B2B institutional</li><li>Token DEX listing</li><li>Series A $5M+</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 8: The Ask -->
+<div class="slide" style="background:linear-gradient(135deg,#030508,#060d08);">
+  <div style="position:relative;z-index:1;text-align:center;max-width:700px;margin:0 auto;">
+    <div class="small">Investment Ask</div>
+    <h2>Raising <span class="green">$500K</span><br>Pre-Seed Round</h2>
+    <p style="text-align:center;margin:24px auto;font-size:16px;">Valuation: $2.5M cap / 20% equity</p>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);margin:40px 0;text-align:left;">
+      <div class="card"><div class="small">Use of Funds</div><div style="font-weight:700;font-size:13px;margin-bottom:8px;">40% · Product</div><div style="font-size:11px;color:#8ba89a;">Smart contracts, mobile app, advanced AI</div></div>
+      <div class="card"><div class="small">Use of Funds</div><div style="font-weight:700;font-size:13px;margin-bottom:8px;">35% · Growth</div><div style="font-size:11px;color:#8ba89a;">Marketing, partnerships, MCP ecosystem</div></div>
+      <div class="card"><div class="small">Use of Funds</div><div style="font-weight:700;font-size:13px;margin-bottom:8px;">25% · Legal</div><div style="font-size:11px;color:#8ba89a;">Incorporation, exchange license, compliance</div></div>
+    </div>
+    <div style="padding:28px;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.2);margin-bottom:32px;">
+      <div style="font-size:13px;color:#8ba89a;margin-bottom:8px;">Contact</div>
+      <div style="font-size:18px;font-weight:700;color:#00ff88;">karena.fieldnine.io</div>
+    </div>
+    <p style="font-size:12px;text-align:center;">The future of finance is AI agents trading autonomously.<br>K-Arena is the exchange they'll use.</p>
+  </div>
+</div>
+
+</body>
+</html>

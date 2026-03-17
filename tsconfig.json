@@ -17,5 +17,5 @@
     "paths": { "@/*": ["./*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "supabase", "blockchain"]
+  "exclude": ["node_modules", "supabase", "blockchain", "track-a", "track-b", "track-c", "track-d"]
 }
