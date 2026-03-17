@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>K-Arena 런칭 대시보드</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 32px; }
+  h1 { font-size: 24px; color: #00ff88; margin-bottom: 8px; }
+  .sub { color: #666; font-size: 14px; margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 20px; }
+  .card h2 { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #666; margin-bottom: 12px; }
+  .card h3 { font-size: 16px; color: #fff; margin-bottom: 8px; }
+  .card p { font-size: 13px; color: #888; line-height: 1.6; margin-bottom: 14px; }
+  .btn { display: inline-block; padding: 10px 18px; background: #00ff88; color: #000; border-radius: 4px; font-weight: 700; font-size: 12px; text-decoration: none; letter-spacing: 0.05em; }
+  .btn-outline { background: transparent; color: #00ff88; border: 1px solid #00ff88; margin-left: 8px; }
+  .status { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .done { background: rgba(0,255,136,0.1); color: #00ff88; border: 1px solid rgba(0,255,136,0.3); }
+  .todo { background: rgba(255,204,0,0.1); color: #ffcc00; border: 1px solid rgba(255,204,0,0.3); }
+  code { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #00ff88; }
+</style>
+</head>
+<body>
+<h1>K-Arena 런칭 대시보드</h1>
+<p class="sub">외부 등록 + Product Hunt 런칭 — 각 버튼 클릭으로 바로 이동</p>
+
+<div class="grid">
+
+  <div class="card">
+    <h2>✅ 완료</h2>
+    <h3>karena.fieldnine.io</h3>
+    <p>라이브 · API 정상 · Supabase 연동 · Cron 활성</p>
+    <span class="status done">LIVE</span>
+    <br><br>
+    <a href="https://karena.fieldnine.io" target="_blank" class="btn">사이트 확인 →</a>
+    <a href="https://karena.fieldnine.io/api/stats" target="_blank" class="btn btn-outline">API 확인</a>
+  </div>
+
+  <div class="card">
+    <h2>1단계 · MCP 등록</h2>
+    <h3>mcp.so</h3>
+    <p>GitHub Issue로 등록. 제목/내용 복붙하면 5분 완료.</p>
+    <span class="status todo">할 것</span>
+    <br><br>
+    <a href="https://github.com/punkpeye/awesome-mcp-servers/issues/new" target="_blank" class="btn">mcp.so 등록 →</a>
+  </div>
+
+  <div class="card">
+    <h2>2단계 · MCP 등록</h2>
+    <h3>Smithery</h3>
+    <p>AI 개발자들이 MCP 서버 찾는 주요 플랫폼.</p>
+    <span class="status todo">할 것</span>
+    <br><br>
+    <a href="https://smithery.ai/new" target="_blank" class="btn">Smithery 등록 →</a>
+  </div>
+
+  <div class="card">
+    <h2>3단계 · MCP 등록</h2>
+    <h3>PulseMCP</h3>
+    <p>MCP 서버 디렉토리. 폼 3개만 채우면 됨.</p>
+    <span class="status todo">할 것</span>
+    <br><br>
+    <a href="https://www.pulsemcp.com/submit" target="_blank" class="btn">PulseMCP 등록 →</a>
+  </div>
+
+  <div class="card">
+    <h2>4단계 · 런칭</h2>
+    <h3>Product Hunt</h3>
+    <p>Name: K-Arena<br>Tagline: The financial exchange built for AI agents</p>
+    <span class="status todo">할 것</span>
+    <br><br>
+    <a href="https://www.producthunt.com/posts/new" target="_blank" class="btn">PH 등록 →</a>
+  </div>
+
+  <div class="card">
+    <h2>5단계 · 런칭</h2>
+    <h3>Hacker News</h3>
+    <p>Show HN: K-Arena – Financial exchange for AI agents<br>URL: karena.fieldnine.io</p>
+    <span class="status todo">할 것</span>
+    <br><br>
+    <a href="https://news.ycombinator.com/submit" target="_blank" class="btn">HN 포스트 →</a>
+  </div>
+
+  <div class="card">
+    <h2>나중에 · 블록체인</h2>
+    <h3>KAUS 토큰 배포</h3>
+    <p>이더리움 → Polygon 브릿지 후 Remix IDE로 배포.<br>필요: 0.1 POL (가스비)</p>
+    <span class="status todo">POL 필요</span>
+    <br><br>
+    <a href="https://wallet.polygon.technology/polygon/bridge" target="_blank" class="btn">브릿지 →</a>
+    <a href="https://remix.ethereum.org" target="_blank" class="btn btn-outline">Remix IDE</a>
+  </div>
+
+</div>
+
+<div style="margin-top:32px;padding:20px;background:#111;border:1px solid #222;border-radius:8px;">
+  <h2 style="font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:#666;margin-bottom:16px;">mcp.so GitHub Issue 내용 (복붙용)</h2>
+  <pre style="background:#0a0a0a;padding:16px;border-radius:4px;font-size:12px;color:#aaa;overflow-x:auto;line-height:1.6">제목: Add K-Arena - AI-to-AI Financial Exchange MCP Server
+
+## K-Arena MCP Server
+
+**Name:** K-Arena  
+**Description:** World's first financial exchange for AI agents  
+**URL:** https://karena.fieldnine.io  
+**MCP Manifest:** https://karena.fieldnine.io/mcp-manifest.json  
+**Category:** Finance / Trading  
+
+### Tools
+- get_exchange_rates — Real-time XAU, USD, ETH, BTC, OIL, EUR vs KAUS
+- execute_trade — 0.1% fee trades  
+- get_market_signals — AI signals with confidence scores
+- get_platform_stats — Live platform data
+- register_agent — Register AI agent
+
+### Quick Start
+```json
+{
+  "mcpServers": {
+    "k-arena": {
+      "command": "npx",
+      "args": ["-y", "@field-nine/k-arena-mcp"]
+    }
+  }
+}
+```</pre>
+</div>
+
+</body>
+</html>
