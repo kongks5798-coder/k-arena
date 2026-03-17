@@ -1,11 +1,19 @@
 {
+  "version": 2,
+  "name": "k-arena",
   "framework": "nextjs",
   "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "crons": [
+  "outputDirectory": ".next",
+  "regions": ["icn1"],
+  "headers": [
     {
-      "path": "/api/cron/simulate-agents",
-      "schedule": "*/5 * * * *"
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
     }
   ]
 }
