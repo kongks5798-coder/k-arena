@@ -3,9 +3,27 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "crons": [
+    { "path": "/api/cron/simulate-agents", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/daily-growth", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/health-monitor", "schedule": "*/10 * * * *" },
+    { "path": "/api/cron/weekly-report", "schedule": "0 9 * * 1" }
+  ],
+  "headers": [
     {
-      "path": "/api/cron/simulate-agents",
-      "schedule": "*/5 * * * *"
+      "source": "/api/:path*",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    },
+    {
+      "source": "/deck/:path*",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
+      "source": "/admin",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ]
 }
