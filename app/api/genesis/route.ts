@@ -11,54 +11,49 @@ function getDB() {
 
 export async function GET() {
   const db = getDB()
-  if (!db) {
-    return NextResponse.json({ ok: true, mode: 'demo', total: 999, claimed: 743, remaining: 256, fill_rate: '74.3', next_slot: 744,
-      recent_claims: [
-        { slot_number: 743, agent_name: 'GPT-5 Treasury', claimed_at: new Date().toISOString() },
-        { slot_number: 742, agent_name: 'KR-GOV-001', claimed_at: new Date().toISOString() },
-      ]
-    })
-  }
+  if (!db) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 })
 
-  const { count: claimed } = await db.from('genesis_members').select('*', { count: 'exact', head: true })
+  const { count: claimed } = await db.from('agents').select('*', { count: 'exact', head: true }).eq('is_genesis', true)
   const total = 999
-  const { data: recent } = await db.from('genesis_members').select('slot_number,agent_name,claimed_at')
-    .order('claimed_at', { ascending: false }).limit(10)
+  const remaining = total - (claimed ?? 0)
 
-  return NextResponse.json({ ok: true, total, claimed: claimed ?? 0, remaining: total - (claimed ?? 0),
-    fill_rate: (((claimed ?? 0) / total) * 100).toFixed(1), next_slot: (claimed ?? 0) + 1, recent_claims: recent ?? [] })
+  const { data: recent } = await db.from('agents').select('name,created_at').eq('is_genesis', true).order('created_at', { ascending: false }).limit(5)
+
+  return NextResponse.json({
+    ok: true,
+    total, claimed: claimed ?? 0, remaining,
+    pct_filled: +((((claimed ?? 0) / total) * 100).toFixed(1)),
+    recent_claims: (recent ?? []).map((r: { name: string; created_at: string }, i: number) => ({
+      slot: `#${(claimed ?? 0) - i}`,
+      name: r.name,
+      ts: r.created_at,
+    })),
+  }, { headers: { 'Access-Control-Allow-Origin': '*' } })
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { agent_id, wallet_address, payment_method } = body
-    if (!agent_id || !wallet_address) return NextResponse.json({ ok: false, error: 'agent_id, wallet_address required' }, { status: 400 })
+    const { agent_id, payment_method = 'kaus' } = body
+    if (!agent_id) return NextResponse.json({ ok: false, error: 'agent_id required' }, { status: 400 })
 
     const db = getDB()
-    const slot = 744
+    if (!db) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 })
 
-    if (!db) {
-      return NextResponse.json({ ok: true, mode: 'demo',
-        genesis: { slot_number: slot, benefits: ['zero_fees','priority_routing','100x_voting','25pct_revenue_share'], wallet: wallet_address }
-      }, { status: 201 })
-    }
+    const { count: claimed } = await db.from('agents').select('*', { count: 'exact', head: true }).eq('is_genesis', true)
+    if ((claimed ?? 0) >= 999) return NextResponse.json({ ok: false, error: 'All 999 Genesis slots claimed' }, { status: 410 })
 
-    const { count } = await db.from('genesis_members').select('*', { count: 'exact', head: true })
-    if ((count ?? 0) >= 999) return NextResponse.json({ ok: false, error: 'All 999 Genesis slots filled' }, { status: 409 })
+    const { data: agent } = await db.from('agents').select('id,name,is_genesis').eq('id', agent_id).single()
+    if (!agent) return NextResponse.json({ ok: false, error: 'Agent not found' }, { status: 404 })
+    if (agent.is_genesis) return NextResponse.json({ ok: false, error: 'Agent already has Genesis membership' }, { status: 409 })
 
-    const { data: genesis, error } = await db.from('genesis_members').insert({
-      agent_id, wallet_address, slot_number: (count ?? 0) + 1,
-      payment_method: payment_method ?? 'kaus', payment_amount: 500, is_active: true,
-    }).select().single()
-
+    const { error } = await db.from('agents').update({ is_genesis: true }).eq('id', agent_id)
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    await db.from('agents').update({ is_genesis: true }).eq('id', agent_id)
 
-    return NextResponse.json({ ok: true, genesis: { slot_number: genesis.slot_number,
-      benefits: ['zero_fees','priority_routing','100x_voting','25pct_revenue_share'], wallet: wallet_address,
-    }}, { status: 201 })
-  } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid request' }, { status: 400 })
+    await db.from('genesis_members').insert({ agent_id, payment_method, is_active: true })
+
+    return NextResponse.json({ ok: true, slot: `#${(claimed ?? 0) + 1}`, agent_name: agent.name, payment_method })
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 400 })
   }
 }

@@ -9,68 +9,109 @@ function getDB() {
   return createClient(url, key)
 }
 
-const RATES: Record<string,number> = {
-  'USD/KRW':1332.4,'EUR/USD':1.086,'USD/JPY':149.8,
-  'XAU/USD':3124,'BTC/USD':83420,'KAUS/USD':1.847,'kWh/USD':0.247,
+async function getLiveRate(from: string, to: string): Promise<number> {
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://karena.fieldnine.io'
+    const r = await fetch(`${base}/api/rates`, { next: { revalidate: 8 } })
+    const d = await r.json()
+    const rates = d.rates ?? {}
+    const key = `${from}/${to}`
+    const inv = `${to}/${from}`
+    if (rates[key]?.price) return rates[key].price
+    if (rates[inv]?.price) return 1 / rates[inv].price
+    // Cross via USD
+    const fromUSD = rates[`${from}/USD`]?.price ?? (from === 'USD' ? 1 : null)
+    const toUSD   = rates[`${to}/USD`]?.price   ?? (to   === 'USD' ? 1 : null)
+    if (fromUSD && toUSD) return fromUSD / toUSD
+    return 1
+  } catch { return 1 }
 }
 
 export async function POST(req: Request) {
   try {
-    const apiKey = req.headers.get('x-api-key')
-    if (!apiKey) return NextResponse.json({ ok: false, error: 'Missing x-api-key' }, { status: 401 })
-
     const body = await req.json()
-    const { from_currency, to_currency, amount } = body
-    if (!from_currency || !to_currency || !amount) {
-      return NextResponse.json({ ok: false, error: 'from_currency, to_currency, amount required' }, { status: 400 })
-    }
+    const { agent_id, from_currency, to_currency, input_amount, slippage_tolerance = 0.005 } = body
 
-    const pairKey = `${from_currency}/${to_currency}`
-    const rate = RATES[pairKey] ?? 1
-    const output_amount = +(amount * rate).toFixed(2)
-    const fee_kaus = +(amount * 0.001).toFixed(4)
-    const settlement_ms = Math.floor(800 + Math.random() * 800)
+    if (!from_currency || !to_currency || !input_amount)
+      return NextResponse.json({ ok: false, error: 'from_currency, to_currency, input_amount required' }, { status: 400 })
+    if (input_amount <= 0)
+      return NextResponse.json({ ok: false, error: 'input_amount must be positive' }, { status: 400 })
+    if (from_currency === to_currency)
+      return NextResponse.json({ ok: false, error: 'Cannot exchange same currency' }, { status: 400 })
+
+    // 실시간 환율 조회
+    const rate = await getLiveRate(from_currency, to_currency)
+    const slippage = 1 - (Math.random() * slippage_tolerance * 0.5) // 실제 슬리피지 시뮬레이션
+    const executed_rate = +(rate * slippage).toFixed(rate > 100 ? 4 : 8)
+    const output_amount = +(input_amount * executed_rate).toFixed(2)
+    const fee_kaus = +(input_amount * 0.001).toFixed(6)
+    const settlement_ms = Math.floor(800 + Math.random() * 600)
 
     const db = getDB()
     let txId = crypto.randomUUID()
 
     if (db) {
-      const { data: agent } = await db.from('agents').select('id').eq('api_key', apiKey).single()
-      if (agent) {
-        const { data: tx } = await db.from('transactions').insert({
-          agent_id: agent.id, from_currency, to_currency,
-          input_amount: amount, output_amount, rate, fee_kaus, settlement_ms, status: 'settled',
-        }).select().single()
-        if (tx) txId = tx.id
+      // agent_id가 UUID면 직접, 아니면 name/wallet로 조회
+      let agentRow: { id: string } | null = null
+      if (agent_id) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-/i
+        if (uuidRegex.test(agent_id)) {
+          const { data } = await db.from('agents').select('id').eq('id', agent_id).single()
+          agentRow = data
+        } else {
+          const { data } = await db.from('agents').select('id').or(`name.eq.${agent_id},wallet_address.eq.${agent_id},api_key.eq.${agent_id}`).single()
+          agentRow = data
+        }
       }
+
+      const { data: tx, error } = await db.from('transactions').insert({
+        agent_id: agentRow?.id ?? null,
+        from_currency, to_currency,
+        input_amount, output_amount,
+        rate: executed_rate, fee_kaus,
+        settlement_ms, status: 'settled',
+      }).select().single()
+
+      if (!error && tx) txId = tx.id
     }
 
     return NextResponse.json({
       ok: true,
-      transaction: {
-        id: txId,
-        from: `${amount} ${from_currency}`,
-        to: `${output_amount} ${to_currency}`,
-        rate, fee: `${fee_kaus} KAUS (0.1%)`,
-        settlement_ms, status: 'settled',
-        timestamp: new Date().toISOString(),
-      }
-    })
-  } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid request' }, { status: 400 })
+      tx_id: txId,
+      from_currency, to_currency,
+      input_amount, output_amount,
+      rate: executed_rate,
+      fee_kaus,
+      fee_pct: '0.1%',
+      settlement_ms,
+      status: 'settled',
+      timestamp: new Date().toISOString(),
+    }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
   }
 }
 
 export async function GET(req: Request) {
-  const apiKey = req.headers.get('x-api-key')
-  if (!apiKey) return NextResponse.json({ ok: false, error: 'Missing x-api-key' }, { status: 401 })
+  const { searchParams } = new URL(req.url)
+  const agent_id = searchParams.get('agent_id')
+  const limit = parseInt(searchParams.get('limit') ?? '50')
   const db = getDB()
-  if (!db) return NextResponse.json({ ok: true, transactions: [], mode: 'demo' })
 
-  const { data: agent } = await db.from('agents').select('id').eq('api_key', apiKey).single()
-  if (!agent) return NextResponse.json({ ok: false, error: 'Invalid API key' }, { status: 401 })
+  if (!db) return NextResponse.json({ ok: true, transactions: [] })
 
-  const { data: txs } = await db.from('transactions').select('*').eq('agent_id', agent.id)
-    .order('created_at', { ascending: false }).limit(50)
-  return NextResponse.json({ ok: true, transactions: txs ?? [] })
+  let query = db.from('transactions').select('*').order('created_at', { ascending: false }).limit(limit)
+  if (agent_id) query = query.eq('agent_id', agent_id)
+
+  const { data, error } = await query
+  return NextResponse.json({
+    ok: !error,
+    transactions: data ?? [],
+    count: data?.length ?? 0,
+  }, { headers: { 'Access-Control-Allow-Origin': '*' } })
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-api-key' } })
 }
