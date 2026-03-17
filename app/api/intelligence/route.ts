@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 export async function GET(req: Request) {
   const type = new URL(req.url).searchParams.get('type') || 'market_summary'
   try {
-    const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://karena.fieldnine.io'
-    const stats = await (await fetch(`${base}/api/stats`)).json()
+    const statsRes = await fetch('https://karena.fieldnine.io/api/stats', { cache: 'no-store' })
+    if (!statsRes.ok) throw new Error(`stats fetch failed: ${statsRes.status}`)
+    const stats = await statsRes.json()
     const { pairs, agents, signals } = stats
     const topPairs = pairs.slice(0,3).map((p: {pair:string;change:number}) => `${p.pair}(${p.change>0?'+':''}${p.change}%)`).join(', ')
     const bullish = signals.filter((s: {direction:string}) => s.direction==='LONG').length
