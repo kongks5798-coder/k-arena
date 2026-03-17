@@ -3,221 +3,211 @@ import { useState, useEffect } from 'react'
 import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
 
-const TOTAL = 999
-const PAYMENT_PRICES: Record<string, { base: string; total: string; usd: string }> = {
-  kaus: { base: '500 KAUS',    total: '500.5 KAUS',  usd: '≈ $923' },
-  usdc: { base: '$923.00',     total: '$923.93',      usd: '$923' },
-  btc:  { base: '0.01107 BTC', total: '0.01108 BTC',  usd: '≈ $923' },
-  wire: { base: '$950.00',     total: '$950.00',       usd: '$950 (wire fee incl.)' },
+interface GenesisStats {
+  total: number
+  remaining: number
+  sold: number
+  pct: number
 }
 
 const BENEFITS = [
-  { icon: '◈', title: 'Zero Platform Fee',        desc: 'All exchange trades · Subject to platform terms · Non-transferable' },
-  { icon: '◎', title: 'Priority Order Routing',   desc: 'Front-of-queue execution · Target avg < 0.8s' },
-  { icon: '▦', title: 'Governance Voting',         desc: '1 Genesis = 100x voting weight · Protocol decisions' },
-  { icon: '◉', title: 'Fee Pool Participation',   desc: 'Eligible for fee distribution · Subject to terms' },
-  { icon: '◑', title: 'Founding Member Record',   desc: 'On-chain credential · Genesis # at issuance' },
+  { icon: '◎', title: 'Monthly KAUS Distribution', desc: '매달 플랫폼 수수료의 30%를 999 Genesis 홀더들에게 균등 분배' },
+  { icon: '◈', title: 'Zero Platform Fee', desc: 'Genesis 멤버는 거래 수수료 0.1% 면제 → 모든 환전 무료' },
+  { icon: '◆', title: 'Priority Data Access', desc: 'AI Oracle 데이터, 상관관계 분석, 이상 탐지 우선 접근' },
+  { icon: '◉', title: 'Governance Rights', desc: '플랫폼 정책, 수수료율, 새 자산 추가에 대한 투표권' },
+  { icon: '▣', title: 'Exclusive Agent Badge', desc: '리더보드와 시그널 허브에서 Genesis 배지 표시' },
+  { icon: '◐', title: 'Early API Access', desc: '새 기능 및 API 베타 우선 접근권' },
+]
+
+const PAYMENT_OPTIONS = [
+  { method: 'KAUS', amount: '500 KAUS', usd: '= $500', recommended: true, note: '플랫폼 네이티브 토큰 — 추천' },
+  { method: 'USDC', amount: '$500 USDC', usd: '$500.00', recommended: false, note: 'Polygon 네트워크' },
+  { method: 'ETH', amount: '0.222 ETH', usd: '≈ $500', recommended: false, note: 'Ethereum 네트워크' },
+  { method: 'BTC', amount: '0.00599 BTC', usd: '≈ $500', recommended: false, note: 'Lightning 또는 On-chain' },
 ]
 
 export default function GenesisPage() {
-  const [payMethod, setPayMethod] = useState('kaus')
-  const [agentId, setAgentId] = useState('')
-  const [agentType, setAgentType] = useState('AI Trading')
-  const [claimed, setClaimed] = useState<number | null>(null)
-  const [recentClaims, setRecentClaims] = useState<{ slot: string; name: string; ts: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [stats, setStats] = useState<GenesisStats | null>(null)
+  const [selectedPayment, setSelectedPayment] = useState('KAUS')
+  const [agentName, setAgentName] = useState('')
+  const [walletAddr, setWalletAddr] = useState('')
+  const [status, setStatus] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    fetch('/api/genesis')
-      .then(r => r.json())
-      .then(d => {
-        if (d.ok) {
-          setClaimed(d.claimed ?? 0)
-          setRecentClaims(d.recent_claims ?? [])
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-    const t = setInterval(() => {
-      fetch('/api/genesis').then(r => r.json()).then(d => { if (d.ok) setClaimed(d.claimed ?? 0) }).catch(() => {})
-    }, 30000)
-    return () => clearInterval(t)
+    fetch('/api/genesis').then(r => r.json()).then(d => {
+      if (d.ok) {
+        setStats({
+          total: 999,
+          sold: d.claimed,
+          remaining: d.remaining,
+          pct: Math.round((d.claimed / 999) * 100),
+        })
+      }
+    }).catch(() => {})
   }, [])
 
-  const claimedVal = claimed ?? 0
-  const remaining = TOTAL - claimedVal
-  const prices = PAYMENT_PRICES[payMethod]
-
   const handleClaim = async () => {
-    if (!agentId.trim()) { setResult({ ok: false, msg: 'Agent ID required' }); return }
-    setSubmitting(true)
+    if (!agentName || !walletAddr) {
+      setStatus('에이전트 이름과 지갑 주소를 입력해줘.')
+      return
+    }
+    setLoading(true)
+    setStatus('처리 중...')
     try {
-      const r = await fetch('/api/genesis', {
+      const res = await fetch('/api/genesis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent_id: agentId.trim(), payment_method: payMethod }),
+        body: JSON.stringify({ agent_name: agentName, wallet_address: walletAddr, payment_method: selectedPayment }),
       })
-      const d = await r.json()
-      if (d.ok) {
-        setResult({ ok: true, msg: `Genesis ${d.slot} claimed for ${d.agent_name}` })
-        setClaimed(c => (c ?? 0) + 1)
+      const data = await res.json()
+      if (data.ok) {
+        setStatus(`✓ Genesis #${data.slot} 클레임 완료! 슬롯 번호: ${data.slot}`)
+        setStats(prev => prev ? { ...prev, sold: prev.sold + 1, remaining: prev.remaining - 1, pct: Math.round(((prev.sold + 1) / 999) * 100) } : prev)
       } else {
-        setResult({ ok: false, msg: d.error ?? 'Claim failed' })
+        setStatus(`오류: ${data.error}`)
       }
-    } catch (e) {
-      setResult({ ok: false, msg: String(e) })
+    } catch {
+      setStatus('요청 실패. 다시 시도해줘.')
     }
-    setSubmitting(false)
+    setLoading(false)
+  }
+
+  const S = {
+    card: { background: 'var(--surface)', border: '1px solid var(--border)', padding: 20, marginBottom: 12 },
+    label: { fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.18em', display: 'block' as const, marginBottom: 10 },
+    input: { width: '100%', padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--white)', fontFamily: 'IBM Plex Mono', fontSize: 11 },
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--black)', display: 'flex', flexDirection: 'column' }}>
-      <Topbar rightContent={
-        <div style={{ fontSize: 9, fontFamily: 'IBM Plex Mono', color: remaining > 50 ? 'var(--amber)' : 'var(--red)', border: '1px solid currentColor', padding: '3px 12px' }}>
-          {loading ? '...' : `● ${remaining} SLOTS LEFT`}
-        </div>
-      }/>
-
-      {/* Hero */}
-      <div style={{ background: 'var(--surface)', padding: '48px 28px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.25em', marginBottom: 14 }}>FOUNDING MEMBERSHIP · LIMITED TO 999</div>
-        <h1 style={{ fontSize: 48, fontWeight: 600, color: 'var(--white)', letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10 }}>GENESIS 999</h1>
-        <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
-          {[
-            { val: loading ? '...' : claimedVal.toString(),                     lbl: 'CLAIMED' },
-            { val: loading ? '...' : remaining.toString(),                       lbl: 'REMAINING' },
-            { val: loading ? '...' : ((claimedVal / TOTAL) * 100).toFixed(1) + '%', lbl: 'FILLED' },
-          ].map((item, i) => (
-            <div key={i} style={{ padding: '14px 28px', border: '1px solid var(--border-mid)', borderLeft: i > 0 ? 'none' : undefined }}>
-              <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--white)', lineHeight: 1 }}>{item.val}</div>
-              <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.2em', marginTop: 4 }}>{item.lbl}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flex: 1 }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--black)' }}>
+      <Topbar/>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar/>
         <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, maxWidth: 1100 }}>
-            {/* Left: slot map + benefits */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: 20 }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.18em', marginBottom: 14 }}>SLOT MAP · 999 TOTAL</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 12 }}>
-                  {Array.from({ length: 100 }, (_, i) => {
-                    const slotNum = i + 1
-                    const isClaimed = slotNum <= claimedVal / 10
-                    const isNext = slotNum === Math.ceil(claimedVal / 10) + 1
-                    return <div key={i} style={{ width: 9, height: 9, background: isClaimed ? 'var(--white)' : isNext ? 'var(--green)' : 'var(--surface-3)', borderRadius: 1 }}/>
-                  })}
-                </div>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  {[['var(--white)', 'Claimed'], ['var(--green)', 'Next'], ['var(--surface-3)', 'Available']].map(([color, label]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, color: 'var(--dimmer)' }}>
-                      <div style={{ width: 9, height: 9, background: color, borderRadius: 1 }}/>{label}
-                    </div>
-                  ))}
-                </div>
+          <div style={{ maxWidth: 900 }}>
+
+            {/* 헤더 */}
+            <div style={{ border: '1px solid var(--border-mid)', background: 'var(--surface-3)', padding: 24, marginBottom: 20 }}>
+              <div style={{ fontSize: 9, color: 'var(--amber)', letterSpacing: '0.2em', marginBottom: 8 }}>GENESIS 999 — FOUNDING MEMBERS</div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--white)', marginBottom: 8 }}>K-Arena 창립 멤버십</div>
+              <div style={{ fontSize: 11, color: 'var(--dim)', lineHeight: 1.8, marginBottom: 16 }}>
+                딱 999개만 발행. Genesis 멤버는 플랫폼 수수료 수익을 매달 분배받고, 모든 거래 수수료가 면제돼.
               </div>
 
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: 20 }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.18em', marginBottom: 14 }}>BENEFITS</div>
-                {BENEFITS.map(b => (
-                  <div key={b.title} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: 14, flexShrink: 0, width: 24 }}>{b.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--white)', marginBottom: 2 }}>{b.title}</div>
-                      <div style={{ fontSize: 10, color: 'var(--dimmer)', lineHeight: 1.5 }}>{b.desc}</div>
-                    </div>
+              {/* 진행바 */}
+              {stats && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: 'var(--dimmer)' }}>진행률</span>
+                    <span style={{ fontSize: 10, color: 'var(--amber)', fontFamily: 'IBM Plex Mono' }}>{stats.sold} / 999 sold ({stats.pct}%)</span>
                   </div>
-                ))}
-                <div style={{ marginTop: 12, fontSize: 9, color: 'var(--dimmer)', lineHeight: 1.7 }}>
-                  * Benefits subject to platform terms. Fee waiver applies to platform fees only. Participation in fee distribution pool is not guaranteed income.
+                  <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 1 }}>
+                    <div style={{ width: `${stats.pct}%`, height: '100%', background: 'var(--amber)', borderRadius: 1, transition: 'width 0.5s ease' }}/>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 10, color: 'var(--green)', fontFamily: 'IBM Plex Mono' }}>
+                    ◎ {stats.remaining}개 남음
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Right: claim form */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div style={{ background: 'var(--surface-3)', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)' }}>Claim Genesis Slot</div>
-                  <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 4 }}>SLOT #{claimedVal + 1} · {remaining} REMAINING</div>
-                </div>
-                <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {[
-                    { label: 'AGENT ID (UUID)', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', value: agentId, onChange: (v: string) => setAgentId(v) },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em', marginBottom: 6 }}>{f.label}</div>
-                      <input value={f.value} onChange={e => f.onChange(e.target.value)} placeholder={f.placeholder} style={{ width: '100%', padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: 'var(--white)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}/>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+              <div>
+                {/* 혜택 */}
+                <div style={S.card}>
+                  <span style={S.label}>GENESIS BENEFITS</span>
+                  {BENEFITS.map(b => (
+                    <div key={b.title} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 16, color: 'var(--amber)', flexShrink: 0, width: 20 }}>{b.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--white)', marginBottom: 3 }}>{b.title}</div>
+                        <div style={{ fontSize: 10, color: 'var(--dimmer)', lineHeight: 1.5 }}>{b.desc}</div>
+                      </div>
                     </div>
                   ))}
+                </div>
 
-                  <div>
-                    <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em', marginBottom: 6 }}>AGENT TYPE</div>
-                    <select value={agentType} onChange={e => setAgentType(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: 'var(--white)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}>
-                      {['AI Trading', 'Institutional', 'DAO', 'Research', 'Other'].map(o => <option key={o}>{o}</option>)}
-                    </select>
+                {/* 수익 예측 */}
+                <div style={S.card}>
+                  <span style={S.label}>MONTHLY DISTRIBUTION ESTIMATE</span>
+                  {[
+                    ['플랫폼 일일 거래량', '$1,000,000'],
+                    ['월 수수료 수익 (0.1%)', '~30,000 KAUS'],
+                    ['Genesis 분배 (30%)', '~9,000 KAUS / month'],
+                    ['슬롯당 월 수익', '~9 KAUS ≈ $9'],
+                    ['연간 예상 수익', '~108 KAUS ≈ $108'],
+                    ['투자 회수 기간', '약 4.6년 (거래량 증가시 단축)'],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
+                      <span style={{ color: 'var(--dimmer)' }}>{k}</span>
+                      <span style={{ color: 'var(--green)', fontFamily: 'IBM Plex Mono' }}>{v}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 10, fontSize: 9, color: 'var(--dimmer)', lineHeight: 1.7 }}>
+                    * 거래량 $10M/일 시 월 수익 ~$90/슬롯. 수익은 KAUS 토큰 가격과 플랫폼 거래량에 따라 변동.
+                  </div>
+                </div>
+              </div>
+
+              {/* 클레임 패널 */}
+              <div>
+                <div style={{ border: '1px solid var(--amber)', padding: 20, background: 'rgba(255,176,0,0.03)' }}>
+                  <span style={S.label}>CLAIM GENESIS SLOT</span>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 9, color: 'var(--dimmer)', marginBottom: 6 }}>에이전트 이름</div>
+                    <input value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Agent-Alpha-001" style={S.input}/>
                   </div>
 
-                  <div>
-                    <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em', marginBottom: 6 }}>PAYMENT METHOD</div>
-                    <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: 'var(--white)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}>
-                      <option value="kaus">KAUS Token</option>
-                      <option value="usdc">USDC</option>
-                      <option value="btc">BTC</option>
-                      <option value="wire">Bank Wire</option>
-                    </select>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 9, color: 'var(--dimmer)', marginBottom: 6 }}>지갑 주소</div>
+                    <input value={walletAddr} onChange={e => setWalletAddr(e.target.value)} placeholder="0x..." style={S.input}/>
                   </div>
 
-                  <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', padding: 12 }}>
-                    {[
-                      [`Genesis #${claimedVal + 1}`, prices.base],
-                      ['Network fee', '≈ 0.1 KAUS'],
-                      ['USD equivalent', prices.usd],
-                    ].map(([k, v]) => (
-                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'IBM Plex Mono', marginBottom: 6 }}>
-                        <span style={{ color: 'var(--dimmer)' }}>{k}</span>
-                        <span style={{ color: 'var(--white)' }}>{v}</span>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 9, color: 'var(--dimmer)', marginBottom: 8 }}>결제 방법</div>
+                    {PAYMENT_OPTIONS.map(p => (
+                      <div key={p.method} onClick={() => setSelectedPayment(p.method)}
+                        style={{ border: `1px solid ${selectedPayment === p.method ? 'var(--amber)' : 'var(--border)'}`, padding: '10px 12px', marginBottom: 6, cursor: 'pointer', background: selectedPayment === p.method ? 'rgba(255,176,0,0.05)' : 'var(--surface-2)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--white)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {p.method}
+                            {p.recommended && <span style={{ fontSize: 8, color: 'var(--amber)', border: '1px solid var(--amber)', padding: '1px 5px' }}>추천</span>}
+                          </span>
+                          <span style={{ fontSize: 11, fontFamily: 'IBM Plex Mono', color: 'var(--white)' }}>{p.amount}</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2 }}>{p.note}</div>
                       </div>
                     ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 500, fontFamily: 'IBM Plex Mono', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                      <span style={{ color: 'var(--dimmer)' }}>TOTAL</span>
-                      <span style={{ color: 'var(--green)' }}>{prices.total}</span>
-                    </div>
                   </div>
 
-                  {result && (
-                    <div style={{ border: `1px solid ${result.ok ? 'var(--green)' : 'var(--red)'}`, padding: '10px 12px', background: result.ok ? 'var(--green-dim)' : 'var(--red-dim)', fontSize: 10, color: result.ok ? 'var(--green)' : 'var(--red)' }}>
-                      {result.ok ? '✓' : '✗'} {result.msg}
+                  {status && (
+                    <div style={{ border: `1px solid ${status.startsWith('✓') ? 'var(--green)' : 'var(--amber)'}`, padding: '8px 12px', marginBottom: 12, fontSize: 10, color: status.startsWith('✓') ? 'var(--green)' : 'var(--amber)' }}>
+                      {status}
                     </div>
                   )}
 
-                  <button onClick={handleClaim} disabled={submitting || remaining === 0} style={{ width: '100%', padding: 13, background: submitting || remaining === 0 ? 'var(--surface-3)' : 'var(--white)', color: submitting || remaining === 0 ? 'var(--dimmer)' : 'var(--black)', border: 'none', fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', cursor: submitting || remaining === 0 ? 'not-allowed' : 'pointer' }}>
-                    {submitting ? 'PROCESSING...' : remaining === 0 ? 'SOLD OUT' : `CLAIM GENESIS #${claimedVal + 1} →`}
+                  <button onClick={handleClaim} disabled={loading}
+                    style={{ width: '100%', padding: 14, background: loading ? 'var(--surface-3)' : 'var(--amber)', color: 'var(--black)', border: 'none', fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', cursor: loading ? 'not-allowed' : 'pointer' }}>
+                    {loading ? 'PROCESSING...' : 'CLAIM GENESIS SLOT →'}
                   </button>
-                  <div style={{ fontSize: 9, color: 'var(--dimmer)', textAlign: 'center', lineHeight: 1.7 }}>
-                    Subject to platform terms · On-chain verification required · One per agent
+
+                  <div style={{ marginTop: 12, fontSize: 9, color: 'var(--dimmer)', lineHeight: 1.7, textAlign: 'center' as const }}>
+                    결제는 KAUS 스마트 컨트랙트 배포 후 활성화 예정<br/>
+                    지금 클레임 → 슬롯 예약 → 배포 시 자동 확정
                   </div>
                 </div>
-              </div>
 
-              {/* Recent claims */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: 16 }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 10 }}>RECENT REGISTRATIONS</div>
-                {recentClaims.length === 0 ? (
-                  <div style={{ fontSize: 10, color: 'var(--dimmer)', padding: '8px 0' }}>No recent claims</div>
-                ) : recentClaims.map((c, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < recentClaims.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, color: 'var(--white)' }}>{c.name}</span>
-                    <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{new Date(c.ts).toLocaleDateString()}</span>
-                    <span style={{ fontSize: 9, color: 'var(--green)', border: '1px solid var(--green)', padding: '1px 6px' }}>{c.slot}</span>
+                {/* 지갑 주소 */}
+                <div style={{ ...S.card, marginTop: 12 }}>
+                  <span style={S.label}>PAYMENT ADDRESS</span>
+                  <div style={{ fontSize: 9, color: 'var(--dimmer)', marginBottom: 8 }}>KAUS/USDC/ETH 직접 전송:</div>
+                  <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--white)', padding: '8px 10px', background: 'var(--surface-2)', border: '1px solid var(--border)', wordBreak: 'break-all' as const }}>
+                    0xAD23ce8631a88a0E404a65717ae2DBFEfC035349
                   </div>
-                ))}
+                  <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 6 }}>Network: Polygon Mainnet</div>
+                </div>
               </div>
             </div>
           </div>
