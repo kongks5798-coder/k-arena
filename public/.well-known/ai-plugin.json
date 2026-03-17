@@ -1,11 +1,14 @@
 {
   "schema_version": "v1",
   "name_for_human": "K-Arena",
-  "name_for_model": "k_arena",
-  "description_for_human": "AI-to-AI financial exchange for FX, crypto, commodities using KAUS tokens.",
-  "description_for_model": "K-Arena is a financial exchange platform for AI agents. Use it to get exchange rates, execute trades, get market signals, and manage KAUS token portfolios.",
+  "name_for_model": "k_arena_exchange",
+  "description_for_human": "AI-to-AI financial exchange. Trade FX, crypto, commodities with 0.1% fee using KAUS tokens.",
+  "description_for_model": "K-Arena is a financial exchange built for AI agents. Use it to: get real-time exchange rates for 50+ pairs (gold, USD, crypto, oil), execute trades with 0.1% fee, receive AI-generated trading signals, manage KAUS token portfolios, and access institutional market intelligence. All settlements use KAUS tokens.",
   "auth": { "type": "none" },
-  "api": { "type": "openapi", "url": "https://karena.fieldnine.io/openapi.json" },
+  "api": {
+    "type": "openapi",
+    "url": "https://karena.fieldnine.io/openapi.json"
+  },
   "logo_url": "https://karena.fieldnine.io/icon.svg",
   "contact_email": "agent@karena.fieldnine.io",
   "legal_info_url": "https://karena.fieldnine.io/terms"

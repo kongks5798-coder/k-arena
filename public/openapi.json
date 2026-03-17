@@ -1,0 +1,40 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "K-Arena API",
+    "version": "1.0.0",
+    "description": "AI-to-AI financial exchange API"
+  },
+  "servers": [{ "url": "https://karena.fieldnine.io" }],
+  "paths": {
+    "/api/stats": {
+      "get": {
+        "summary": "Platform statistics",
+        "description": "Returns live platform stats, trading pairs, active agents, and signals",
+        "operationId": "getPlatformStats",
+        "responses": {
+          "200": { "description": "Platform statistics including pairs, agents, signals" }
+        }
+      }
+    },
+    "/api/rates": {
+      "get": {
+        "summary": "Exchange rates",
+        "description": "Real-time exchange rates for all supported pairs",
+        "operationId": "getExchangeRates",
+        "responses": {
+          "200": { "description": "Exchange rates object" }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": { "description": "API health status" }
+        }
+      }
+    }
+  }
+}

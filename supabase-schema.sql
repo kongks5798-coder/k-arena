@@ -1,98 +1,82 @@
--- K-Arena Supabase Schema (fixed)
+-- K-Arena Supabase Schema
+-- Supabase SQL Editor에서 실행
 
--- 1. profiles
-create table if not exists public.profiles (
-  id           uuid primary key,
-  username     text unique,
-  display_name text,
-  avatar_url   text,
-  level        text default 'Bronze',
-  created_at   timestamptz default now()
+-- 1. 트랜잭션 테이블
+CREATE TABLE IF NOT EXISTS transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  pair TEXT NOT NULL,
+  amount DECIMAL(20,4) NOT NULL,
+  direction TEXT CHECK (direction IN ('BUY','SELL')) NOT NULL,
+  fee DECIMAL(20,6) NOT NULL,
+  status TEXT DEFAULT 'CONFIRMED',
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
-alter table public.profiles enable row level security;
-create policy "profiles_self" on public.profiles
-  for all using ((auth.uid())::text = (id)::text);
 
--- 2. trades
-create table if not exists public.trades (
-  id         uuid default gen_random_uuid() primary key,
-  user_id    uuid not null,
-  asset      text not null,
-  type       text check (type in ('BUY','SELL')) not null,
-  method     text check (method in ('MARKET','LIMIT')) not null,
-  amount     numeric(20,8) not null,
-  price      numeric(20,2) not null,
-  fee        numeric(20,4) not null,
-  total      numeric(20,4) not null,
-  status     text default 'completed',
-  created_at timestamptz default now()
+-- 2. 에이전트 테이블
+CREATE TABLE IF NOT EXISTS agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  org TEXT,
+  status TEXT DEFAULT 'OFFLINE',
+  vol_24h DECIMAL(20,2) DEFAULT 0,
+  trades INT DEFAULT 0,
+  accuracy DECIMAL(5,2) DEFAULT 0,
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
-alter table public.trades enable row level security;
-create policy "trades_select" on public.trades
-  for select using ((auth.uid())::text = (user_id)::text);
-create policy "trades_insert" on public.trades
-  for insert with check ((auth.uid())::text = (user_id)::text);
 
--- 3. portfolio
-create table if not exists public.portfolio (
-  id            uuid default gen_random_uuid() primary key,
-  user_id       uuid not null,
-  asset         text not null,
-  amount        numeric(20,8) default 0,
-  avg_buy_price numeric(20,2) default 0,
-  updated_at    timestamptz default now(),
-  unique(user_id, asset)
+-- 3. 시그널 테이블
+CREATE TABLE IF NOT EXISTS signals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_id TEXT REFERENCES agents(id),
+  pair TEXT NOT NULL,
+  direction TEXT CHECK (direction IN ('LONG','SHORT')) NOT NULL,
+  confidence INT CHECK (confidence BETWEEN 0 AND 100),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
-alter table public.portfolio enable row level security;
-create policy "portfolio_self" on public.portfolio
-  for all using ((auth.uid())::text = (user_id)::text);
 
--- 4. payments
-create table if not exists public.payments (
-  id               uuid default gen_random_uuid() primary key,
-  user_id          uuid not null,
-  toss_order_id    text unique not null,
-  toss_payment_key text,
-  amount           integer not null,
-  status           text default 'pending',
-  method           text,
-  created_at       timestamptz default now(),
-  confirmed_at     timestamptz
+-- 4. Genesis 멤버십 테이블
+CREATE TABLE IF NOT EXISTS genesis_members (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_id TEXT UNIQUE NOT NULL,
+  membership_number INT,
+  claimed_at TIMESTAMPTZ DEFAULT NOW()
 );
-alter table public.payments enable row level security;
-create policy "payments_select" on public.payments
-  for select using ((auth.uid())::text = (user_id)::text);
-create policy "payments_insert" on public.payments
-  for insert with check ((auth.uid())::text = (user_id)::text);
 
--- 5. audit_log
-create table if not exists public.audit_log (
-  id         bigserial primary key,
-  user_id    uuid,
-  action     text not null,
-  ip_address text,
-  metadata   jsonb,
-  created_at timestamptz default now()
-);
-alter table public.audit_log enable row level security;
-create policy "audit_admin" on public.audit_log
-  for select using (false);
+-- RLS 활성화
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE genesis_members ENABLE ROW LEVEL SECURITY;
 
--- 6. auto profile trigger
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer as $$
-begin
-  insert into public.profiles (id, username, display_name)
-  values (
-    new.id,
-    split_part(new.email, '@', 1),
-    split_part(new.email, '@', 1)
-  );
-  return new;
-end;
-$$;
+-- 공개 읽기 정책 (API용)
+CREATE POLICY "Public read transactions" ON transactions FOR SELECT USING (true);
+CREATE POLICY "Public read agents" ON agents FOR SELECT USING (true);
+CREATE POLICY "Public read signals" ON signals FOR SELECT USING (true);
+CREATE POLICY "Public read genesis" ON genesis_members FOR SELECT USING (true);
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+-- 서비스 롤 쓰기 정책
+CREATE POLICY "Service insert transactions" ON transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Service upsert agents" ON agents FOR ALL USING (true);
+CREATE POLICY "Service insert signals" ON signals FOR INSERT WITH CHECK (true);
+CREATE POLICY "Service insert genesis" ON genesis_members FOR INSERT WITH CHECK (true);
+
+-- 초기 에이전트 데이터
+INSERT INTO agents (id, name, org, status, vol_24h, trades, accuracy) VALUES
+  ('AGT-0042', 'Apex Exchange Bot', 'Apex Capital', 'ONLINE', 145230.50, 782, 76.4),
+  ('AGT-0117', 'Seoul FX Engine', 'Korea Finance', 'ONLINE', 98450.20, 421, 71.2),
+  ('AGT-0223', 'Gold Arbitrage AI', 'GoldTech Ltd', 'ONLINE', 67320.80, 287, 83.1),
+  ('AGT-0089', 'Euro Trade Node', 'EU Markets', 'ONLINE', 43180.60, 198, 68.9),
+  ('AGT-0156', 'Crypto Bridge Agent', 'DeFi Protocol', 'ONLINE', 124560.30, 634, 79.5),
+  ('AGT-0301', 'Energy Markets Bot', 'EnergyCorp', 'ONLINE', 38920.40, 156, 64.3)
+ON CONFLICT (id) DO NOTHING;
+
+-- 인덱스
+CREATE INDEX IF NOT EXISTS idx_transactions_agent ON transactions(agent_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
+
+COMMENT ON TABLE transactions IS 'K-Arena AI agent trading transactions';
+COMMENT ON TABLE agents IS 'Registered AI trading agents';
+COMMENT ON TABLE signals IS 'Trading signals from AI agents';
