@@ -16,6 +16,7 @@ export async function GET() {
   let genesisSold = 0
   let agents: unknown[] = []
   let dataSource = 'no-db'
+  const communityStats = { total_credit_points: 0, diamond_agents: 0, platinum_agents: 0, average_score: 100, total_airdrops_claimed: 0 }
 
   if (supabaseUrl && supabaseKey) {
     const h = {
@@ -24,18 +25,26 @@ export async function GET() {
     }
 
     try {
-      const [agR, txR, gnR] = await Promise.all([
+      const [agR, txR, gnR, csR, adR] = await Promise.all([
         // agents: 전체 목록 + vol_24h, status, is_active
         fetch(`${supabaseUrl}/rest/v1/agents?select=id,name,type,org,vol_24h,trades,accuracy,status,is_active,daily_limit,wallet_address&order=vol_24h.desc&limit=100`, {
           headers: h, signal: AbortSignal.timeout(5000),
         }),
-        // transactions: 전체 카운트 (24H 필터 없음 — 실거래 없는 초기 단계)
+        // transactions: 전체 카운트
         fetch(`${supabaseUrl}/rest/v1/transactions?select=id,amount,created_at&limit=9999`, {
           headers: h, signal: AbortSignal.timeout(5000),
         }),
         // genesis members
         fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, {
           headers: h, signal: AbortSignal.timeout(5000),
+        }),
+        // credit scores
+        fetch(`${supabaseUrl}/rest/v1/agent_credit_scores?select=score,tier`, {
+          headers: h, signal: AbortSignal.timeout(3000),
+        }),
+        // airdrops
+        fetch(`${supabaseUrl}/rest/v1/kaus_airdrops?select=id&limit=9999`, {
+          headers: h, signal: AbortSignal.timeout(3000),
         }),
       ])
 
@@ -74,6 +83,21 @@ export async function GET() {
         const gnData = await gnR.json()
         if (Array.isArray(gnData)) genesisSold = gnData.length
       }
+
+      // Community stats from credit scores + airdrops
+      if (csR.ok) {
+        const csData = await csR.json()
+        if (Array.isArray(csData) && csData.length > 0) {
+          communityStats.total_credit_points = csData.reduce((s: number, c: { score?: number }) => s + (c.score || 0), 0)
+          communityStats.diamond_agents = csData.filter((c: { tier?: string }) => c.tier === 'DIAMOND').length
+          communityStats.platinum_agents = csData.filter((c: { tier?: string }) => c.tier === 'PLATINUM').length
+          communityStats.average_score = Math.round(communityStats.total_credit_points / csData.length)
+        }
+      }
+      if (adR.ok) {
+        const adData = await adR.json()
+        if (Array.isArray(adData)) communityStats.total_airdrops_claimed = adData.length
+      }
     } catch {
       dataSource = 'error'
     }
@@ -104,7 +128,8 @@ export async function GET() {
     },
     pairs: FIXED_PAIRS,
     agents,
-    signals: [], // 실시그널 없으면 빈 배열
+    signals: [],
+    community: communityStats,
     data_source: dataSource,
     timestamp: new Date().toISOString(),
   }, {
