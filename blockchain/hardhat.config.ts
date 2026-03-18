@@ -20,11 +20,17 @@ const config: HardhatUserConfig = {
       chainId: 137,
       gasPrice: 50_000_000_000, // 50 gwei
     },
-    // Polygon Amoy Testnet (Mumbai 후속)
+    // Polygon Amoy Testnet (현재 공식 테스트넷, 2024.04~ Mumbai 대체)
     amoy: {
       url: "https://rpc-amoy.polygon.technology",
       accounts: [PRIVATE_KEY],
       chainId: 80002,
+    },
+    // Polygon Mumbai Testnet (deprecated 2024.04 — Amoy 권장)
+    mumbai: {
+      url: process.env.MUMBAI_RPC_URL ?? "https://rpc-mumbai.maticvigil.com",
+      accounts: [PRIVATE_KEY],
+      chainId: 80001,
     },
     // Local
     hardhat: {
