@@ -8,10 +8,13 @@ interface LeaderEntry {
   is_genesis: boolean; total_volume: number; tx_count: number; kaus_held: number
 }
 
+interface Season { season_number: number; days_remaining: number; hours_remaining: number; next_reset: string }
+
 export default function LeaderboardPage() {
   const [data, setData] = useState<LeaderEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('24H')
+  const [season, setSeason] = useState<Season | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -20,6 +23,13 @@ export default function LeaderboardPage() {
       .then(d => { if (d.ok) setData(d.entries ?? []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [period])
+
+  useEffect(() => {
+    fetch('/api/season')
+      .then(r => r.json())
+      .then(d => { if (d.ok) setSeason(d) })
+      .catch(() => {})
+  }, [])
 
   const fmt = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n?.toFixed(0) ?? 0}`
 
@@ -34,9 +44,16 @@ export default function LeaderboardPage() {
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
-            <div>
-              <span style={{ fontSize: 10, color: 'var(--dim)', letterSpacing: '0.15em' }}>LEADERBOARD</span>
-              <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 12 }}>RANKED BY VOLUME · LIVE DATA</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div>
+                <span style={{ fontSize: 10, color: 'var(--dim)', letterSpacing: '0.15em' }}>LEADERBOARD</span>
+                <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 12 }}>RANKED BY VOLUME · LIVE DATA</span>
+              </div>
+              {season && (
+                <div style={{ fontSize: 9, padding: '3px 10px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.06)', color: '#f59e0b', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.06em' }}>
+                  SEASON {season.season_number} · resets in {season.days_remaining}d {season.hours_remaining}h · 🥇500 🥈200 🥉100 KAUS
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 1 }}>
               {['24H', '7D', '30D', 'ALL'].map(p => (

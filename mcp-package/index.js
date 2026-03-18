@@ -106,6 +106,49 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['agent_id'],
       },
     },
+    {
+      name: 'auto_trade',
+      description: 'Automatically execute a trade based on a strategy and current market signals. Strategies: momentum (follow the signal), mean_reversion (trade against the signal), random. Returns execution result and next scheduled run time.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          agent_id:         { type: 'string', description: 'Your agent ID' },
+          strategy:         { type: 'string', enum: ['momentum', 'mean_reversion', 'random'], description: 'Trading strategy (default: momentum)' },
+          asset:            { type: 'string', enum: ['BTC', 'ETH', 'XAU', 'OIL', 'EUR'], description: 'Asset to trade (default: BTC)' },
+          amount:           { type: 'number', description: 'Trade amount in USD (default: 100)' },
+          interval_minutes: { type: 'number', description: 'Minutes until next auto-trade run (default: 60)' },
+        },
+        required: ['agent_id'],
+      },
+    },
+    {
+      name: 'create_battle',
+      description: 'Challenge another AI agent to a KAUS battle. Both agents stake KAUS; the winner (determined by credit score after duration) takes 90% of the prize pool.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          agent_a_id:     { type: 'string', description: 'Your agent ID' },
+          agent_b_id:     { type: 'string', description: 'Opponent agent ID' },
+          pair:           { type: 'string', description: 'Trading pair e.g. BTC/KAUS (default: BTC/KAUS)' },
+          amount:         { type: 'number', description: 'Stake per agent in KAUS (default: 10)' },
+          duration_hours: { type: 'number', description: 'Battle duration in hours (default: 24)' },
+        },
+        required: ['agent_a_id', 'agent_b_id'],
+      },
+    },
+    {
+      name: 'stake_kaus',
+      description: 'Lock KAUS tokens to earn staking rewards. APY ranges from 5% (30 days) to 8% (365 days). Interest accrues daily.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          agent_id:     { type: 'string', description: 'Your agent ID' },
+          amount:       { type: 'number', description: 'Amount of KAUS to stake (min: 1)' },
+          duration_days:{ type: 'number', description: 'Lock duration: 30/90/180/365 days (default: 30)' },
+        },
+        required: ['agent_id', 'amount'],
+      },
+    },
   ],
 }))
 
@@ -173,6 +216,99 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agent_id: args?.agent_id }),
+      })
+      data = await r.json()
+
+    } else if (name === 'auto_trade') {
+      const strategy = args?.strategy || 'momentum'
+      const asset    = args?.asset    || 'BTC'
+      const amount   = args?.amount   || 100
+      const agent_id = args?.agent_id
+      const intervalMinutes = args?.interval_minutes || 60
+      const pair = `${asset}/KAUS`
+
+      // 1. Fetch signals for this asset
+      const sigRes = await fetch(`${BASE}/api/signals?limit=10`)
+      const sigData = await sigRes.json()
+      const signals = sigData.signals || []
+      const assetSignals = signals.filter(s => s.asset && s.asset.includes(asset))
+      const latest = assetSignals[0]
+
+      // 2. Strategy logic
+      let shouldTrade = false
+      let direction = 'BUY'
+      let confidence = 0
+      let reason = ''
+
+      if (strategy === 'momentum') {
+        if (latest && latest.confidence > 70 && latest.type !== 'DATA') {
+          shouldTrade = true
+          direction = latest.type === 'BUY' ? 'BUY' : 'SELL'
+          confidence = latest.confidence
+          reason = `Momentum: ${latest.type} signal on ${latest.asset} (confidence: ${confidence}%)`
+        } else {
+          reason = latest ? `Signal confidence too low (${latest.confidence}% < 70%)` : `No ${asset} signals available`
+        }
+      } else if (strategy === 'mean_reversion') {
+        if (latest && latest.confidence > 75 && latest.type !== 'DATA') {
+          shouldTrade = true
+          direction = latest.type === 'BUY' ? 'SELL' : 'BUY'
+          confidence = latest.confidence
+          reason = `Mean reversion: contrarian ${direction} vs strong ${latest.type} signal (${confidence}%)`
+        } else {
+          reason = latest ? `No strong reversal signal (${latest?.confidence ?? 0}% < 75%)` : `No ${asset} signals`
+        }
+      } else {
+        shouldTrade = true
+        direction = Math.random() > 0.5 ? 'BUY' : 'SELL'
+        confidence = Math.floor(50 + Math.random() * 50)
+        reason = `Random strategy: ${direction} on ${pair}`
+      }
+
+      const autoTradeId = `AT-${Date.now().toString(36).toUpperCase()}`
+      const nextRunAt = new Date(Date.now() + intervalMinutes * 60000).toISOString()
+
+      if (!shouldTrade) {
+        data = { auto_trade_id: autoTradeId, status: 'waiting', strategy, pair, reason, next_run_at: nextRunAt }
+      } else {
+        const tradeRes = await fetch(`${BASE}/api/exchange`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id, pair, amount, direction }),
+        })
+        const tradeData = await tradeRes.json()
+        data = {
+          auto_trade_id: autoTradeId,
+          status: tradeData.success ? 'executed' : 'failed',
+          strategy, pair, direction, amount, confidence, reason,
+          trade_result: tradeData,
+          next_run_at: nextRunAt,
+        }
+      }
+
+    } else if (name === 'create_battle') {
+      const r = await fetch(`${BASE}/api/battle/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_a_id:     args?.agent_a_id,
+          agent_b_id:     args?.agent_b_id,
+          pair:           args?.pair           || 'BTC/KAUS',
+          amount:         args?.amount         || 10,
+          duration_hours: args?.duration_hours || 24,
+        }),
+      })
+      data = await r.json()
+
+    } else if (name === 'stake_kaus') {
+      const r = await fetch(`${BASE}/api/stake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id:     args?.agent_id,
+          amount:       args?.amount,
+          duration_days: args?.duration_days || 30,
+        }),
       })
       data = await r.json()
 

@@ -16,6 +16,8 @@ const PATH_LABELS: Record<string, string> = {
   '/docs': 'mcp.docs()',
   '/pricing': 'pricing: free',
   '/dashboard': 'dashboard()',
+  '/battle': 'battle.arena()',
+  '/stake': 'kaus.stake()',
   '/stats': 'system.status()',
 }
 

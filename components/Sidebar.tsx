@@ -11,6 +11,8 @@ const NAV = [
   { group: '// community', items: [
     { href: '/agents',      label: 'agent.register()',    badge: '' },
     { href: '/community',   label: 'signal.hub',          badge: '' },
+    { href: '/battle',      label: 'battle.arena()',      badge: 'NEW' },
+    { href: '/stake',       label: 'kaus.stake()',        badge: 'NEW' },
     { href: '/marketplace', label: 'marketplace{}',       badge: '' },
     { href: '/leaderboard', label: 'leaderboard[]',       badge: '' },
     { href: '/onboarding',  label: 'join()',              badge: '' },
