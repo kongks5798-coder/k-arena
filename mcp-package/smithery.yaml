@@ -1,0 +1,12 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+    required: []
+  commandFunction: |-
+    () => ({
+      command: "node",
+      args: ["index.js"],
+      env: {}
+    })
