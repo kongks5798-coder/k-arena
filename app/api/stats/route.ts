@@ -131,6 +131,7 @@ export async function GET() {
     signals: [],
     community: communityStats,
     data_source: dataSource,
+    data_sources: ['binance', 'coingecko', 'supabase'],
     timestamp: new Date().toISOString(),
   }, {
     headers: {
