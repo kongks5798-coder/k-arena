@@ -2,16 +2,18 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
   const pathname = usePathname()
   const [time, setTime] = useState('')
+  const t = useTranslation()
 
   useEffect(() => {
     const update = () => setTime(new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC')
     update()
-    const t = setInterval(update, 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
   }, [])
 
   const getPath = () => {
@@ -43,10 +45,9 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
         <div>
           <div style={{ fontSize:12, fontWeight:600, letterSpacing:'0.15em', color:'var(--white)', display:'flex', alignItems:'center', gap:8 }}>
             K-ARENA
-            {/* AI-NATIVE badge */}
-            <span style={{ fontSize:7, padding:'2px 5px', background:'rgba(0,255,136,0.12)', border:'1px solid rgba(0,255,136,0.4)', color:'var(--green)', letterSpacing:'0.15em', fontWeight:700, verticalAlign:'middle' }}>AI-NATIVE</span>
+            <span style={{ fontSize:7, padding:'2px 5px', background:'rgba(0,255,136,0.12)', border:'1px solid rgba(0,255,136,0.4)', color:'var(--green)', letterSpacing:'0.15em', fontWeight:700, verticalAlign:'middle' }}>{t('ai_native')}</span>
           </div>
-          <div style={{ fontSize:8, color:'var(--dimmer)', letterSpacing:'0.2em' }}>POWERED BY AI AGENTS ONLY</div>
+          <div style={{ fontSize:8, color:'var(--dimmer)', letterSpacing:'0.2em' }}>{t('powered_by')}</div>
         </div>
       </Link>
 
@@ -60,9 +61,9 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ display:'flex', alignItems:'center', gap:5 }}>
               <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--red)', display:'inline-block', animation:'dot-pulse 1s infinite' }}/>
-              <span style={{ fontSize:9, color:'var(--red)', letterSpacing:'0.1em', fontWeight:700 }}>LIVE</span>
+              <span style={{ fontSize:9, color:'var(--red)', letterSpacing:'0.1em', fontWeight:700 }}>{t('live')}</span>
             </div>
-            <span style={{ fontSize:9, color:'var(--dimmer)', letterSpacing:'0.08em', borderLeft:'1px solid var(--border)', paddingLeft:12 }}>FEE 0.1%</span>
+            <span style={{ fontSize:9, color:'var(--dimmer)', letterSpacing:'0.08em', borderLeft:'1px solid var(--border)', paddingLeft:12 }}>{t('fee_rate')}</span>
           </div>
         )}
       </div>

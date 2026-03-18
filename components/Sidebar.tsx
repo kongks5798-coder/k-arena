@@ -1,27 +1,23 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslation } from '@/hooks/useTranslation'
 
 const NAV = [
-  { group: 'EXCHANGE', items: [
-    { href: '/',           label: 'OVERVIEW' },
-    { href: '/exchange',   label: 'FX EXCHANGE',   badge: 'LIVE' },
-    { href: '/genesis',    label: 'GENESIS 999',   badge: '256' },
-    { href: '/wallet',     label: 'KAUS WALLET' },
+  { groupKey: 'group_exchange', items: [
+    { href: '/',            labelKey: 'nav_overview' },
+    { href: '/genesis',     labelKey: 'nav_genesis',       badge: '256' },
   ]},
-  { group: 'COMMUNITY', items: [
-    { href: '/agents',     label: 'AGENT REGISTRY' },
-    { href: '/community',  label: 'SIGNAL HUB',    badge: 'NEW' },
-    { href: '/leaderboard',label: 'RANKINGS' },
-    { href: '/onboarding', label: 'REGISTER' },
+  { groupKey: 'group_community', items: [
+    { href: '/agents',      labelKey: 'nav_agent_registry' },
+    { href: '/community',   labelKey: 'nav_signal_hub',    badge: 'NEW' },
+    { href: '/leaderboard', labelKey: 'nav_rankings' },
+    { href: '/onboarding',  labelKey: 'nav_register' },
   ]},
-  { group: 'DATA & AI', items: [
-    { href: '/data',       label: 'INTELLIGENCE',  badge: 'NEW' },
-    { href: '/connect',    label: 'CONNECT AGENT', badge: 'SDK' },
-    { href: '/tokenomics', label: 'TOKENOMICS' },
-    { href: '/buy-kaus',   label: 'BUY KAUS',      badge: '\$' },
-    { href: '/api/rates',  label: 'PRICE ORACLE',  badge: 'API' },
-    { href: '/api/stats',  label: 'PLATFORM STATS',badge: 'API' },
+  { groupKey: 'group_data_ai', items: [
+    { href: '/data',        labelKey: 'nav_intelligence',   badge: 'NEW' },
+    { href: '/connect',     labelKey: 'nav_connect_agent',  badge: 'SDK' },
+    { href: '/api/stats',   labelKey: 'nav_platform_stats', badge: 'API' },
   ]},
 ]
 
@@ -33,13 +29,6 @@ const S = {
     overflowY: 'auto' as const,
     padding: '16px 0',
     display: 'flex', flexDirection: 'column' as const,
-  },
-  kausBox: {
-    margin: '0 12px 20px',
-    border: '1px solid var(--border-mid)',
-    borderRadius: 2,
-    padding: '12px',
-    background: 'var(--surface)',
   },
   groupLabel: {
     fontSize: 9, letterSpacing: '0.2em',
@@ -67,28 +56,19 @@ const S = {
 
 export function Sidebar() {
   const pathname = usePathname()
+  const t = useTranslation()
 
   return (
     <aside style={S.aside}>
-      {/* KAUS price */}
-      <div style={S.kausBox}>
-        <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 6 }}>KAUS/USD</div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--white)', lineHeight: 1, marginBottom: 4 }}>1.847</div>
-        <div style={{ fontSize: 10, color: 'var(--green)' }}>+3.24% ↑</div>
-        <svg width="100%" height="28" viewBox="0 0 180 28" style={{ marginTop: 10, display: 'block' }}>
-          <polyline points="0,22 20,18 40,20 60,14 80,12 100,10 120,13 140,7 160,5 180,3" fill="none" stroke="var(--green)" strokeWidth="1" opacity="0.6"/>
-        </svg>
-      </div>
-
       {NAV.map(g => (
-        <div key={g.group} style={{ marginBottom: 16 }}>
-          <div style={S.groupLabel}>{g.group}</div>
+        <div key={g.groupKey} style={{ marginBottom: 16 }}>
+          <div style={S.groupLabel}>{t(g.groupKey)}</div>
           {g.items.map(item => {
             const active = pathname === item.href
             return (
               <Link key={item.href} href={item.href} style={S.navItem(active)}>
                 <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>
-                  {active ? '▸ ' : '  '}{item.label}
+                  {active ? '▸ ' : '  '}{t(item.labelKey)}
                 </span>
                 {item.badge && <span style={S.badge(active)}>{item.badge}</span>}
               </Link>
@@ -99,11 +79,11 @@ export function Sidebar() {
 
       {/* Bottom status */}
       <div style={{ marginTop: 'auto', padding: '12px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em', marginBottom: 6 }}>SYS STATUS</div>
-        {[['MAINNET','ONLINE'],['ORACLE','SYNC'],['DB','CONNECTED']].map(([k,v]) => (
+        <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em', marginBottom: 6 }}>{t('sys_status')}</div>
+        {([['sys_mainnet','sys_online'],['sys_oracle','sys_sync'],['sys_db','sys_connected']] as const).map(([k,v]) => (
           <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-            <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{k}</span>
-            <span style={{ fontSize: 9, color: 'var(--green)' }}>{v}</span>
+            <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{t(k)}</span>
+            <span style={{ fontSize: 9, color: 'var(--green)' }}>{t(v)}</span>
           </div>
         ))}
       </div>
