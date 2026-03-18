@@ -47,9 +47,42 @@ const SEED_LOGS = [
   },
 ]
 
+async function ensureTable(supabaseUrl: string, serviceKey: string): Promise<{ ok: boolean; method: string; error?: string }> {
+  // Try Supabase pg-meta SQL API (requires service role key)
+  const pgMetaUrl = supabaseUrl.replace('/rest/v1', '') + '/pg-meta/v0/query'
+  const createSQL = `
+    CREATE TABLE IF NOT EXISTS marketing_logs (
+      id BIGSERIAL PRIMARY KEY,
+      platform TEXT NOT NULL,
+      action TEXT NOT NULL,
+      result TEXT NOT NULL DEFAULT '',
+      url TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    ALTER TABLE marketing_logs DISABLE ROW LEVEL SECURITY;
+  `
+  try {
+    const res = await fetch(pgMetaUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: createSQL }),
+      signal: AbortSignal.timeout(8000),
+    })
+    if (res.ok) return { ok: true, method: 'pg-meta' }
+    const err = await res.text()
+    return { ok: false, method: 'pg-meta', error: err }
+  } catch (e) {
+    return { ok: false, method: 'pg-meta', error: String(e) }
+  }
+}
+
 export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseKey
 
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json({ ok: false, error: 'No DB config' }, { status: 503 })
@@ -62,13 +95,15 @@ export async function GET() {
     Prefer: 'return=representation',
   }
 
-  // Check existing rows to avoid duplicate seeding
+  // Check if table exists — if not, try to create it
+  let tableReady = false
   try {
     const checkRes = await fetch(
       `${supabaseUrl}/rest/v1/marketing_logs?select=id&limit=1`,
       { headers: h, signal: AbortSignal.timeout(5000) }
     )
     if (checkRes.ok) {
+      tableReady = true
       const existing = await checkRes.json()
       if (existing.length > 0) {
         return NextResponse.json({
@@ -77,8 +112,36 @@ export async function GET() {
           existing_count: existing.length,
         })
       }
+    } else {
+      // Table likely doesn't exist — try to create it
+      if (serviceKey) {
+        const createResult = await ensureTable(supabaseUrl, serviceKey)
+        if (createResult.ok) {
+          tableReady = true
+        } else {
+          return NextResponse.json({
+            ok: false,
+            error: 'Table does not exist and auto-create failed',
+            create_error: createResult.error,
+            manual_sql: `CREATE TABLE IF NOT EXISTS marketing_logs (
+  id BIGSERIAL PRIMARY KEY,
+  platform TEXT NOT NULL,
+  action TEXT NOT NULL,
+  result TEXT NOT NULL DEFAULT '',
+  url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE marketing_logs DISABLE ROW LEVEL SECURITY;`,
+            dashboard: 'https://supabase.com/dashboard/project/gflbuujjotqpflrbgtpd/sql/new',
+          }, { status: 500 })
+        }
+      }
     }
   } catch {}
+
+  if (!tableReady) {
+    return NextResponse.json({ ok: false, error: 'Could not verify table state' }, { status: 500 })
+  }
 
   // Insert seed rows
   const results: { platform: string; ok: boolean; error?: string }[] = []
