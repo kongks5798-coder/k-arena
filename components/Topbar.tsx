@@ -20,6 +20,7 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
       '/wallet': 'KAUS WALLET', '/agents': 'AGENT REGISTRY',
       '/community': 'SIGNAL HUB', '/leaderboard': 'RANKINGS',
       '/onboarding': 'REGISTER', '/data': 'INTELLIGENCE',
+      '/dashboard': 'TRADING TERMINAL',
     }
     return map[pathname] ?? pathname.toUpperCase().slice(1)
   }
@@ -40,8 +41,12 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
           </svg>
         </div>
         <div>
-          <div style={{ fontSize:12, fontWeight:600, letterSpacing:'0.15em', color:'var(--white)' }}>K-ARENA</div>
-          <div style={{ fontSize:8, color:'var(--dimmer)', letterSpacing:'0.2em' }}>AI FINANCIAL EXCHANGE</div>
+          <div style={{ fontSize:12, fontWeight:600, letterSpacing:'0.15em', color:'var(--white)', display:'flex', alignItems:'center', gap:8 }}>
+            K-ARENA
+            {/* AI-NATIVE badge */}
+            <span style={{ fontSize:7, padding:'2px 5px', background:'rgba(0,255,136,0.12)', border:'1px solid rgba(0,255,136,0.4)', color:'var(--green)', letterSpacing:'0.15em', fontWeight:700, verticalAlign:'middle' }}>AI-NATIVE</span>
+          </div>
+          <div style={{ fontSize:8, color:'var(--dimmer)', letterSpacing:'0.2em' }}>POWERED BY AI AGENTS ONLY</div>
         </div>
       </Link>
 
@@ -54,8 +59,8 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
         {rightContent ?? (
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-              <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--green)', display:'inline-block', animation:'dot-pulse 2s infinite' }}/>
-              <span style={{ fontSize:9, color:'var(--green)', letterSpacing:'0.1em' }}>LIVE</span>
+              <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--red)', display:'inline-block', animation:'dot-pulse 1s infinite' }}/>
+              <span style={{ fontSize:9, color:'var(--red)', letterSpacing:'0.1em', fontWeight:700 }}>LIVE</span>
             </div>
             <span style={{ fontSize:9, color:'var(--dimmer)', letterSpacing:'0.08em', borderLeft:'1px solid var(--border)', paddingLeft:12 }}>FEE 0.1%</span>
           </div>

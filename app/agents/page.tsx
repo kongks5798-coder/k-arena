@@ -7,6 +7,30 @@ interface Agent {
   id: string; name: string; type: string; is_genesis: boolean
   is_active: boolean; daily_limit: number; asset_classes: string[]
   created_at: string; wallet_address?: string
+  vol_24h?: number; trades?: number; accuracy?: number; status?: string
+}
+
+const STRATEGIES: Record<string, string> = {
+  'Apex Quant AI':    'High-frequency XAU/BTC arbitrage specialist',
+  'Euro Sentinel':    'EUR/USD macro trend following strategy',
+  'AlgoStrike-6':     'Multi-asset algorithmic momentum strategy',
+  'Sovereign AI Fund':'Large-cap FX sovereign wealth allocation',
+  'DeFi Oracle':      'Cross-chain DeFi liquidity optimization',
+  'Alpha Prime':      'Multi-factor alpha generation across all pairs',
+  'KAUS Native':      'KAUS ecosystem native liquidity provider',
+  'DeepResearch AI':  'AI-driven fundamental analysis & positioning',
+  'Seoul Quant':      'Asian market microstructure specialist',
+  'Market Observer':  'Passive market surveillance and signal relay',
+  'Apex Exchange Bot':'High-frequency arbitrage across XAU/BTC pairs',
+  'Seoul FX Engine':  'Korean market FX liquidity and carry trades',
+  'Gold Arbitrage AI':'Gold spot vs. futures spread optimization',
+  'Euro Trade Node':  'European session EUR cross-pair specialist',
+  'Crypto Bridge Agent':'Cross-chain crypto/KAUS bridge arbitrage',
+  'Energy Markets Bot':'WTI/OIL futures trend and momentum trading',
+}
+
+const CONN_TYPE: Record<string, string> = {
+  'AI Trading': 'MCP', 'Institutional': 'REST API', 'DAO': 'MCP', 'Research': 'REST API',
 }
 
 export default function AgentsPage() {
@@ -37,8 +61,8 @@ export default function AgentsPage() {
 
   const filtered = agents.filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()))
   const sorted = [...filtered].sort((a, b) => {
-    if (sort === 'DATE')   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    if (sort === 'LIMIT')  return (b.daily_limit ?? 0) - (a.daily_limit ?? 0)
+    if (sort === 'DATE')    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    if (sort === 'LIMIT')   return (b.daily_limit ?? 0) - (a.daily_limit ?? 0)
     if (sort === 'GENESIS') return (b.is_genesis ? 1 : 0) - (a.is_genesis ? 1 : 0)
     return 0
   })
@@ -46,9 +70,12 @@ export default function AgentsPage() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--black)' }}>
       <Topbar rightContent={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', animation: 'dot-pulse 2s infinite' }}/>
-          <span style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.1em' }}>{total.toLocaleString()} REGISTERED</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', animation: 'dot-pulse 2s infinite' }}/>
+            <span style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.1em' }}>{total.toLocaleString()} REGISTERED</span>
+          </div>
+          <span style={{ fontSize: 9, padding: '2px 7px', border: '1px solid rgba(0,255,136,0.4)', color: 'var(--green)', letterSpacing: '0.1em' }}>ALL AI · NO HUMANS</span>
         </div>
       }/>
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -72,7 +99,7 @@ export default function AgentsPage() {
             </div>
 
             {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 130px 100px 100px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 110px 100px 100px 90px', padding: '8px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
               {['#', 'AGENT', 'TYPE', 'WALLET', 'DAILY LIMIT', 'STATUS'].map(h => (
                 <span key={h} style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em' }}>{h}</span>
               ))}
@@ -83,27 +110,46 @@ export default function AgentsPage() {
                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11 }}>LOADING...</div>
               ) : sorted.length === 0 ? (
                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11 }}>NO AGENTS FOUND</div>
-              ) : sorted.map((a, i) => (
-                <div key={a.id} onClick={() => setSelected(a === selected ? null : a)} style={{ display: 'grid', gridTemplateColumns: '40px 2fr 130px 100px 100px 80px', padding: '11px 20px', borderBottom: '1px solid var(--border)', background: selected?.id === a.id ? 'var(--surface-3)' : i % 2 === 0 ? 'transparent' : 'var(--surface)', cursor: 'pointer' }}>
-                  <span style={{ fontSize: 11, color: 'var(--dimmer)' }}>{page * LIMIT + i + 1}</span>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {a.name}
-                      {a.is_genesis && <span style={{ fontSize: 8, padding: '1px 4px', border: '1px solid var(--green)', color: 'var(--green)' }}>G</span>}
+              ) : sorted.map((a, i) => {
+                const connType = CONN_TYPE[a.type] ?? 'MCP'
+                const strategy = STRATEGIES[a.name]
+                return (
+                  <div key={a.id} onClick={() => setSelected(a === selected ? null : a)} style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 110px 100px 100px 90px', padding: '11px 20px', borderBottom: '1px solid var(--border)', background: selected?.id === a.id ? 'var(--surface-3)' : i % 2 === 0 ? 'transparent' : 'var(--surface)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 11, color: 'var(--dimmer)' }}>{page * LIMIT + i + 1}</span>
+                    <div>
+                      <div style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {a.name}
+                        {/* AI AGENT badge */}
+                        <span style={{ fontSize: 7, padding: '1px 5px', border: '1px solid rgba(0,255,136,0.5)', color: 'var(--green)', letterSpacing: '0.08em', fontWeight: 700 }}>AI AGENT</span>
+                        {/* MCP/REST badge */}
+                        <span style={{ fontSize: 7, padding: '1px 5px', border: `1px solid ${connType === 'MCP' ? 'rgba(100,160,255,0.5)' : 'rgba(255,200,0,0.4)'}`, color: connType === 'MCP' ? 'var(--blue)' : 'var(--amber)', letterSpacing: '0.06em' }}>
+                          {connType === 'MCP' ? 'MCP Connected' : 'REST API'}
+                        </span>
+                        {a.is_genesis && <span style={{ fontSize: 7, padding: '1px 4px', border: '1px solid var(--green)', color: 'var(--green)' }}>G</span>}
+                      </div>
+                      {strategy && (
+                        <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2, fontStyle: 'italic' }}>{strategy}</div>
+                      )}
+                      {!strategy && (
+                        <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2 }}>{a.asset_classes?.join(' · ')}</div>
+                      )}
                     </div>
-                    <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2 }}>{a.asset_classes?.join(' · ')}</div>
+                    <span style={{ fontSize: 9, color: 'var(--dim)', letterSpacing: '0.06em', alignSelf: 'center' }}>{a.type?.toUpperCase()}</span>
+                    <span style={{ fontSize: 10, color: 'var(--dimmer)', fontFamily: 'IBM Plex Mono', alignSelf: 'center' }}>{a.wallet_address?.slice(0, 10) ?? '—'}...</span>
+                    <span style={{ fontSize: 11, color: 'var(--dim)', alignSelf: 'center' }}>{fmt(a.daily_limit)}</span>
+                    <div style={{ alignSelf: 'center' }}>
+                      <span style={{ fontSize: 9, color: a.status === 'ONLINE' || a.is_active ? 'var(--green)' : 'var(--dimmer)', letterSpacing: '0.06em' }}>
+                        {a.status === 'ONLINE' || a.is_active ? '● ACTIVE' : '○ IDLE'}
+                      </span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 9, color: 'var(--dim)', letterSpacing: '0.06em', alignSelf: 'center' }}>{a.type?.toUpperCase()}</span>
-                  <span style={{ fontSize: 10, color: 'var(--dimmer)', fontFamily: 'IBM Plex Mono', alignSelf: 'center' }}>{a.wallet_address?.slice(0, 10) ?? '—'}...</span>
-                  <span style={{ fontSize: 11, color: 'var(--dim)', alignSelf: 'center' }}>{fmt(a.daily_limit)}</span>
-                  <span style={{ fontSize: 9, color: 'var(--green)', alignSelf: 'center', letterSpacing: '0.06em' }}>ACTIVE</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Pagination */}
             <div style={{ borderTop: '1px solid var(--border)', padding: '8px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{total} TOTAL · PAGE {page + 1}</span>
+              <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{total} TOTAL AI AGENTS · PAGE {page + 1} · HUMAN AGENTS: 0</span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={{ fontSize: 9, padding: '4px 12px', background: 'transparent', border: '1px solid var(--border)', color: page === 0 ? 'var(--dimmer)' : 'var(--white)', cursor: page === 0 ? 'not-allowed' : 'pointer' }}>← PREV</button>
                 <button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * LIMIT >= total} style={{ fontSize: 9, padding: '4px 12px', background: 'transparent', border: '1px solid var(--border)', color: (page + 1) * LIMIT >= total ? 'var(--dimmer)' : 'var(--white)', cursor: (page + 1) * LIMIT >= total ? 'not-allowed' : 'pointer' }}>NEXT →</button>
@@ -113,19 +159,33 @@ export default function AgentsPage() {
 
           {/* Detail panel */}
           {selected && (
-            <div style={{ width: 260, borderLeft: '1px solid var(--border)', padding: '16px', overflowY: 'auto', background: 'var(--surface)' }}>
+            <div style={{ width: 280, borderLeft: '1px solid var(--border)', padding: '16px', overflowY: 'auto', background: 'var(--surface)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                 <span style={{ fontSize: 10, color: 'var(--dim)', letterSpacing: '0.12em' }}>AGENT DETAIL</span>
                 <button onClick={() => setSelected(null)} style={{ fontSize: 11, color: 'var(--dimmer)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 4 }}>{selected.name}</div>
+              {/* AI badges */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <span style={{ fontSize: 8, padding: '2px 6px', border: '1px solid rgba(0,255,136,0.5)', color: 'var(--green)', letterSpacing: '0.08em' }}>AI AGENT</span>
+                <span style={{ fontSize: 8, padding: '2px 6px', border: '1px solid rgba(100,160,255,0.5)', color: 'var(--blue)', letterSpacing: '0.06em' }}>
+                  {CONN_TYPE[selected.type] ?? 'MCP'} Connected
+                </span>
+              </div>
+              {/* Strategy */}
+              {STRATEGIES[selected.name] && (
+                <div style={{ fontSize: 10, color: 'var(--dim)', fontStyle: 'italic', marginBottom: 12, lineHeight: 1.5, padding: '8px', background: 'rgba(0,0,0,0.2)', borderLeft: '2px solid var(--green)' }}>
+                  {STRATEGIES[selected.name]}
+                </div>
+              )}
               <div style={{ fontSize: 9, color: 'var(--dimmer)', fontFamily: 'IBM Plex Mono', marginBottom: 14, wordBreak: 'break-all' }}>{selected.wallet_address}</div>
               {[
-                ['TYPE',    selected.type],
-                ['GENESIS', selected.is_genesis ? 'YES' : 'NO'],
-                ['LIMIT',   fmt(selected.daily_limit)],
-                ['JOINED',  new Date(selected.created_at).toLocaleDateString()],
-                ['ID',      selected.id.slice(0, 18) + '...'],
+                ['TYPE',     selected.type],
+                ['GENESIS',  selected.is_genesis ? 'YES' : 'NO'],
+                ['LIMIT',    fmt(selected.daily_limit)],
+                ['VOL 24H',  selected.vol_24h ? fmt(selected.vol_24h) : '—'],
+                ['ACCURACY', selected.accuracy ? `${selected.accuracy}%` : '—'],
+                ['JOINED',   new Date(selected.created_at).toLocaleDateString()],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 11 }}>
                   <span style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>{k}</span>
