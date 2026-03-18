@@ -1,67 +1,94 @@
-import Navbar from "@/src/components/Navbar";
-import { User, Mail, Shield, Bell } from "lucide-react";
+'use client'
+import { Topbar } from '@/components/Topbar'
+import { Sidebar } from '@/components/Sidebar'
+import Link from 'next/link'
 
 export default function ProfilePage() {
   return (
-    <main className="min-h-screen bg-[#0a0e27] text-white">
-      <Navbar />
-      <div className="pt-24 pb-20 px-4 max-w-2xl mx-auto">
-        <h1 className="text-3xl font-black mb-8">
-          <span className="text-k-teal">프로필</span>
-        </h1>
-        <div className="space-y-4">
-          <div className="card">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-full bg-k-teal/20 border-2 border-k-teal/40 flex items-center justify-center">
-                <User className="w-8 h-8 text-k-teal" />
+    <div className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden">
+      <Topbar />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 overflow-auto p-4 md:p-6 space-y-5">
+
+          <div>
+            <div className="text-[9px] text-gray-600 font-mono tracking-widest mb-1">// account</div>
+            <h1 className="text-base font-bold font-mono text-white tracking-widest">PROFILE</h1>
+          </div>
+
+          {/* User card */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-5">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 rounded border border-green-700/40 bg-green-900/10 flex items-center justify-center">
+                <span className="text-green-400 font-mono font-bold text-lg">K</span>
               </div>
               <div>
-                <p className="font-bold text-xl">K-Arena User</p>
-                <p className="text-gray-400 text-sm">user@k-arena.gg</p>
+                <div className="text-sm font-bold font-mono text-white">K-Arena User</div>
+                <div className="text-[10px] text-gray-500 font-mono">user@k-arena.gg</div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              {[{ v: "42", l: "거래 횟수" }, { v: "Silver", l: "등급" }, { v: "₩3.2M", l: "누적 거래" }].map(s => (
-                <div key={s.l} className="bg-k-darker/50 rounded-lg p-3 border border-k-teal/10">
-                  <p className="text-k-teal font-black text-lg">{s.v}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{s.l}</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[{ v: '42', l: 'Trades' }, { v: 'SILVER', l: 'Tier' }, { v: '$3.2K', l: 'Volume' }].map(s => (
+                <div key={s.l} className="border border-gray-800 rounded p-3 text-center">
+                  <div className="text-sm font-bold font-mono text-green-400">{s.v}</div>
+                  <div className="text-[9px] text-gray-500 font-mono mt-0.5">{s.l}</div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="card space-y-4">
-            <h2 className="font-bold text-lg flex items-center gap-2"><Mail className="w-5 h-5 text-k-teal" /> 계정 정보</h2>
-            {[{ l: "이메일", v: "user@k-arena.gg" }, { l: "가입일", v: "2026.01.15" }, { l: "인증 상태", v: "✅ 인증 완료" }].map(r => (
-              <div key={r.l} className="flex justify-between text-sm border-b border-k-teal/10 pb-3 last:border-0 last:pb-0">
-                <span className="text-gray-400">{r.l}</span>
-                <span className="text-white font-medium">{r.v}</span>
+
+          {/* Account info */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-4">
+            <div className="text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-3">Account Info</div>
+            {[{ l: 'Email', v: 'user@k-arena.gg' }, { l: 'Joined', v: '2026-01-15' }, { l: 'Status', v: '✅ Verified' }].map(r => (
+              <div key={r.l} className="flex justify-between py-2 border-b border-gray-800/40 last:border-0 text-[11px] font-mono">
+                <span className="text-gray-500">{r.l}</span>
+                <span className="text-white">{r.v}</span>
               </div>
             ))}
           </div>
-          <div className="card space-y-3">
-            <h2 className="font-bold text-lg flex items-center gap-2"><Shield className="w-5 h-5 text-k-teal" /> 보안</h2>
-            <div className="flex justify-between items-center">
-              <div><p className="font-medium">2단계 인증 (2FA)</p><p className="text-gray-400 text-xs mt-0.5">계정 보안 강화</p></div>
-              <span className="text-xs bg-k-teal/20 text-k-teal px-3 py-1 rounded-full font-medium">활성화됨</span>
+
+          {/* Security */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-4">
+            <div className="text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-3">Security</div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-800/40 text-[11px] font-mono">
+              <div>
+                <div className="text-white">2FA</div>
+                <div className="text-[9px] text-gray-500">Two-factor authentication</div>
+              </div>
+              <span className="text-[9px] px-2 py-0.5 bg-green-900/30 text-green-400 border border-green-800 rounded">ENABLED</span>
             </div>
-            <div className="flex justify-between items-center">
-              <div><p className="font-medium">비밀번호 변경</p><p className="text-gray-400 text-xs mt-0.5">마지막 변경: 30일 전</p></div>
-              <button className="text-xs border border-k-teal/30 text-k-teal px-3 py-1 rounded-full hover:bg-k-teal/10 transition-colors">변경</button>
+            <div className="flex items-center justify-between py-2 text-[11px] font-mono">
+              <div>
+                <div className="text-white">Password</div>
+                <div className="text-[9px] text-gray-500">Last changed 30 days ago</div>
+              </div>
+              <button className="text-[9px] text-gray-400 border border-gray-700 px-2 py-0.5 rounded hover:border-gray-500 hover:text-white transition">Change</button>
             </div>
           </div>
-          <div className="card space-y-3">
-            <h2 className="font-bold text-lg flex items-center gap-2"><Bell className="w-5 h-5 text-k-teal" /> 알림 설정</h2>
-            {[{ l: "거래 체결 알림", on: true }, { l: "가격 알림", on: true }, { l: "마케팅 이메일", on: false }].map(n => (
-              <div key={n.l} className="flex justify-between items-center">
-                <p className="text-sm">{n.l}</p>
-                <span className={`text-xs px-3 py-1 rounded-full font-medium ${n.on ? "bg-k-success/20 text-k-success" : "bg-gray-700 text-gray-400"}`}>
-                  {n.on ? "켜짐" : "꺼짐"}
+
+          {/* Notification prefs */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-4">
+            <div className="text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-3">Notifications</div>
+            {[{ l: 'Trade executed', on: true }, { l: 'Price alerts', on: true }, { l: 'Marketing emails', on: false }].map(n => (
+              <div key={n.l} className="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-[11px] font-mono">
+                <span className="text-white">{n.l}</span>
+                <span className={`text-[9px] px-2 py-0.5 rounded border ${n.on ? 'bg-green-900/30 text-green-400 border-green-800' : 'bg-gray-800/50 text-gray-500 border-gray-700'}`}>
+                  {n.on ? 'ON' : 'OFF'}
                 </span>
               </div>
             ))}
           </div>
-        </div>
+
+          {/* Quick nav */}
+          <div className="flex gap-2">
+            <Link href="/agents" className="flex-1 text-center py-2.5 text-[10px] font-mono rounded border border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 transition">My Agents</Link>
+            <Link href="/settings" className="flex-1 text-center py-2.5 text-[10px] font-mono rounded border border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 transition">Settings</Link>
+            <Link href="/api-dashboard" className="flex-1 text-center py-2.5 text-[10px] font-mono rounded border border-green-700/40 text-green-400 hover:bg-green-900/20 transition">API Keys</Link>
+          </div>
+
+        </main>
       </div>
-    </main>
-  );
+    </div>
+  )
 }

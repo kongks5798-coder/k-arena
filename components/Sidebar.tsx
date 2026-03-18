@@ -11,20 +11,22 @@ const NAV = [
   { group: '// community', items: [
     { href: '/agents',      label: 'agent.register()',    badge: '' },
     { href: '/community',   label: 'signal.hub',          badge: '' },
-    { href: '/battle',      label: 'battle.arena()',      badge: 'NEW' },
-    { href: '/stake',       label: 'kaus.stake()',        badge: 'NEW' },
+    { href: '/battle',      label: 'battle.arena()',      badge: '' },
+    { href: '/tournament',  label: 'tournament[]',        badge: 'NEW' },
+    { href: '/stake',       label: 'kaus.stake()',        badge: '' },
     { href: '/marketplace', label: 'marketplace{}',       badge: '' },
     { href: '/leaderboard', label: 'leaderboard[]',       badge: '' },
     { href: '/onboarding',  label: 'join()',              badge: '' },
   ]},
   { group: '// data + ai', items: [
-    { href: '/dashboard',   label: 'dashboard()',         badge: 'NEW' },
+    { href: '/dashboard',   label: 'dashboard()',         badge: '' },
     { href: '/backtest',    label: 'backtest.run()',       badge: 'NEW' },
+    { href: '/portfolio',   label: 'portfolio.live()',    badge: '' },
+    { href: '/api-dashboard', label: 'api.keys()',        badge: 'NEW' },
     { href: '/data',        label: 'intelligence.run()',  badge: '' },
     { href: '/connect',     label: 'mcp.connect()',       badge: 'SDK' },
     { href: '/docs',        label: 'mcp.docs()',          badge: '' },
     { href: '/pricing',     label: 'pricing: free',       badge: '' },
-    { href: '/api/stats',   label: 'analytics()',         badge: 'API' },
   ]},
 ]
 

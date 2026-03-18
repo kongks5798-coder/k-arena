@@ -1,0 +1,16 @@
+{
+  "name": "k-arena-telegram-bot",
+  "version": "1.0.0",
+  "description": "K-Arena Telegram Bot — trade alerts, tier upgrades, battle results",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
