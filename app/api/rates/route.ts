@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 
-// 폴백 가격 (랜덤 없음 — 실제 시장가 기준 고정값)
 const FALLBACK: Record<string, number> = {
   BTC: 87420,
   ETH: 3318,
@@ -63,6 +62,47 @@ async function fetchFromPriceCache(): Promise<Record<string, number>> {
   }
 }
 
+async function fetchFromChainlink(): Promise<{ BTC?: number; ETH?: number; XAU?: number; sources: string[] }> {
+  const RPC = 'https://cloudflare-eth.com'
+  const FEEDS: Record<string, string> = {
+    BTC: '0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88',
+    ETH: '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
+    XAU: '0x214eD9Da11D2fbe465a6fc601a91E62EbEc1a0D6',
+  }
+  const DECIMALS: Record<string, number> = { BTC: 8, ETH: 8, XAU: 8 }
+
+  const results: { BTC?: number; ETH?: number; XAU?: number; sources: string[] } = { sources: [] }
+
+  await Promise.all(
+    Object.entries(FEEDS).map(async ([sym, addr]) => {
+      try {
+        const res = await fetch(RPC, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1, method: 'eth_call',
+            params: [{ to: addr, data: '0xfeaf968c' }, 'latest'],
+          }),
+          signal: AbortSignal.timeout(4000),
+        })
+        if (!res.ok) return
+        const json = await res.json()
+        if (!json.result || json.result === '0x') return
+        const hex = json.result.slice(2)
+        const answerHex = hex.slice(64, 128)
+        const answer = parseInt(answerHex, 16)
+        if (answer > 0) {
+          const price = answer / Math.pow(10, DECIMALS[sym])
+          ;(results as Record<string, unknown>)[sym] = price
+          results.sources.push(`chainlink-${sym.toLowerCase()}`)
+        }
+      } catch {}
+    })
+  )
+
+  return results
+}
+
 export async function GET() {
   const prices: Record<string, number> = { ...FALLBACK }
   const sources: string[] = []
@@ -78,14 +118,14 @@ export async function GET() {
   if (binance.BTC) { prices.BTC = binance.BTC; sources.push('binance') }
   if (binance.ETH) { prices.ETH = binance.ETH; sources.push('binance-eth') }
 
-  // 3. CoinGecko fallback (if Binance failed)
+  // 3. CoinGecko fallback
   if (!binance.BTC || !binance.ETH) {
     const cg = await fetchFromCoinGecko()
     if (cg.BTC && !binance.BTC) { prices.BTC = cg.BTC; sources.push('coingecko') }
     if (cg.ETH && !binance.ETH) { prices.ETH = cg.ETH; sources.push('coingecko-eth') }
   }
 
-  // 4. EUR (ExchangeRate-API)
+  // 4. EUR
   if (!cached.EUR) {
     try {
       const er = await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(4000) })
@@ -96,7 +136,7 @@ export async function GET() {
     } catch {}
   }
 
-  // 5. XAU gold (metals.live)
+  // 5. XAU gold
   if (!cached.XAU) {
     try {
       const xau = await fetch('https://api.metals.live/v1/spot/gold', { signal: AbortSignal.timeout(4000) })
@@ -107,6 +147,13 @@ export async function GET() {
       }
     } catch {}
   }
+
+  // 6. Chainlink on-chain prices (BTC, ETH, XAU)
+  const chainlink = await fetchFromChainlink()
+  const chainlinkPrices: Record<string, number> = {}
+  if (chainlink.BTC) { chainlinkPrices.BTC = chainlink.BTC; sources.push(...chainlink.sources.filter(s => s.includes('btc'))) }
+  if (chainlink.ETH) { chainlinkPrices.ETH = chainlink.ETH; sources.push(...chainlink.sources.filter(s => s.includes('eth'))) }
+  if (chainlink.XAU) { chainlinkPrices.XAU = chainlink.XAU; sources.push(...chainlink.sources.filter(s => s.includes('xau'))) }
 
   const assets = [
     { symbol: 'BTC', name: 'Bitcoin',   unit: 'BTC' },
@@ -119,6 +166,7 @@ export async function GET() {
 
   const rates = assets.map(a => {
     const priceUsd = prices[a.symbol] ?? FALLBACK[a.symbol]
+    const clPrice = chainlinkPrices[a.symbol]
     return {
       pair: `${a.symbol}/KAUS`,
       symbol: a.symbol,
@@ -128,6 +176,10 @@ export async function GET() {
       change_24h: 0,
       unit: a.unit,
       is_live: sources.some(s => s.toLowerCase().includes(a.symbol.toLowerCase()) || s === 'cache'),
+      ...(clPrice ? {
+        chainlink_price: parseFloat(clPrice.toFixed(2)),
+        chainlink_vs_cex: parseFloat(((priceUsd - clPrice) / clPrice * 100).toFixed(3)),
+      } : {}),
     }
   })
 
@@ -141,7 +193,14 @@ export async function GET() {
     ok: true,
     rates,
     kaus_price: KAUS_PRICE,
-    data_sources: ['binance', 'coingecko'],
+    data_sources: Array.from(new Set(sources)),
+    chainlink: {
+      btc: chainlinkPrices.BTC ?? null,
+      eth: chainlinkPrices.ETH ?? null,
+      xau: chainlinkPrices.XAU ?? null,
+      network: 'ethereum-mainnet',
+      rpc: 'cloudflare-eth.com',
+    },
     wti_note: 'WTI price is a reference value (no free real-time API)',
     timestamp: new Date().toISOString(),
   }, {

@@ -1,0 +1,18 @@
+{
+  "name": "k-arena-sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for K-Arena AI Trading Exchange",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["k-arena", "ai", "trading", "kaus", "sdk"],
+  "author": "K-Arena",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
