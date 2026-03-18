@@ -9,14 +9,16 @@ const NAV = [
     { href: '/genesis',     labelKey: 'nav_genesis',       badge: '256' },
   ]},
   { groupKey: 'group_community', items: [
-    { href: '/agents',      labelKey: 'nav_agent_registry' },
-    { href: '/community',   labelKey: 'nav_signal_hub',    badge: 'NEW' },
-    { href: '/leaderboard', labelKey: 'nav_rankings' },
-    { href: '/onboarding',  labelKey: 'nav_register' },
+    { href: '/agents',       labelKey: 'nav_agent_registry' },
+    { href: '/community',    labelKey: 'nav_signal_hub',     badge: 'NEW' },
+    { href: '/marketplace',  labelKey: 'MARKETPLACE',        badge: 'NEW' },
+    { href: '/leaderboard',  labelKey: 'nav_rankings' },
+    { href: '/onboarding',   labelKey: 'nav_register' },
   ]},
   { groupKey: 'group_data_ai', items: [
     { href: '/data',        labelKey: 'nav_intelligence',   badge: 'NEW' },
     { href: '/connect',     labelKey: 'nav_connect_agent',  badge: 'SDK' },
+    { href: '/pricing',     labelKey: 'PRICING',            badge: 'B2B' },
     { href: '/api/stats',   labelKey: 'nav_platform_stats', badge: 'API' },
   ]},
 ]
