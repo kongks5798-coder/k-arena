@@ -13,11 +13,11 @@ const FEE_DISCOUNTS: Record<string, number> = {
   BRONZE: 0, SILVER: 0.10, GOLD: 0.25, PLATINUM: 0.40, DIAMOND: 0.60,
 }
 
-function getTier(score: number): string {
-  if (score >= 501) return 'DIAMOND'
-  if (score >= 351) return 'PLATINUM'
-  if (score >= 201) return 'GOLD'
-  if (score >= 101) return 'SILVER'
+function getTier(winRate: number, totalTrades: number): string {
+  if (winRate > 80 && totalTrades > 100) return 'DIAMOND'
+  if (winRate >= 75 && totalTrades >= 75) return 'PLATINUM'
+  if (winRate >= 65 && totalTrades >= 50) return 'GOLD'
+  if (winRate >= 50 && totalTrades >= 10) return 'SILVER'
   return 'BRONZE'
 }
 
@@ -51,10 +51,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { agent_id, pair, amount, direction } = body
+    const { agent_id, pair, amount, direction, api_key } = body
+    const headerKey = req.headers.get('x-arena-key') ?? req.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!agent_id || !pair || !amount || !direction) {
-      return NextResponse.json({ error: 'Required: agent_id, pair, amount, direction' }, { status: 400 })
+      return NextResponse.json({ error: 'insufficient_params', required: ['agent_id', 'pair', 'amount', 'direction'] }, { status: 400 })
     }
 
     const priceData = getPrice(pair)
@@ -71,10 +72,42 @@ export async function POST(req: NextRequest) {
     let agentScore = 100
     let totalTrades = 0
     let winRate = 0
+    let isGenesis = false
 
     if (supabaseUrl && supabaseKey) {
       const hRead = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
       const hWrite = { ...hRead, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
+
+      // Validate api_key if provided
+      const providedKey = api_key ?? headerKey
+      if (providedKey) {
+        try {
+          const agentRes = await fetch(
+            `${supabaseUrl}/rest/v1/agents?id=eq.${agent_id}&select=id,api_key&limit=1`,
+            { headers: hRead, signal: AbortSignal.timeout(2000) }
+          )
+          if (agentRes.ok) {
+            const agentData = await agentRes.json()
+            if (Array.isArray(agentData) && agentData.length > 0 && agentData[0].api_key) {
+              if (agentData[0].api_key !== providedKey) {
+                return NextResponse.json({ error: 'invalid_api_key' }, { status: 401 })
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Check genesis membership (0% fee)
+      try {
+        const gnRes = await fetch(
+          `${supabaseUrl}/rest/v1/genesis_members?agent_id=eq.${agent_id}&select=id&limit=1`,
+          { headers: hRead, signal: AbortSignal.timeout(2000) }
+        )
+        if (gnRes.ok) {
+          const gnData = await gnRes.json()
+          isGenesis = Array.isArray(gnData) && gnData.length > 0
+        }
+      } catch {}
 
       // Fetch credit score for fee discount
       try {
@@ -93,14 +126,16 @@ export async function POST(req: NextRequest) {
         }
       } catch {}
 
-      const discount = FEE_DISCOUNTS[agentTier] ?? 0
+      const discount = isGenesis ? 1.0 : (FEE_DISCOUNTS[agentTier] ?? 0)
       const baseFee = parseFloat((amount * 0.001).toFixed(4))
-      const fee = parseFloat((baseFee * (1 - discount)).toFixed(4))
+      const fee = isGenesis ? 0 : parseFloat((baseFee * (1 - discount)).toFixed(4))
       const kausAmount = parseFloat((amount / execPrice).toFixed(6))
 
       const newTrades = totalTrades + 1
-      const newScore = Math.min(100 + Math.min(newTrades * 2, 200) + (winRate >= 70 ? 50 : winRate >= 50 ? 25 : 0), 750)
-      const newTier = getTier(newScore)
+      // win_rate: simple increment toward 60% baseline (real P&L tracking would improve this)
+      const newWinRate = totalTrades === 0 ? 60 : parseFloat(((winRate * totalTrades + 60) / newTrades).toFixed(1))
+      const newTier = getTier(newWinRate, newTrades)
+      const newScore = agentScore + 2
 
       // Fire-and-forget parallel updates
       await Promise.allSettled([
@@ -116,7 +151,7 @@ export async function POST(req: NextRequest) {
         }),
         fetch(`${supabaseUrl}/rest/v1/agent_credit_scores?agent_id=eq.${agent_id}`, {
           method: 'PATCH', headers: hWrite,
-          body: JSON.stringify({ total_trades: newTrades, score: newScore, tier: newTier, updated_at: new Date().toISOString() }),
+          body: JSON.stringify({ total_trades: newTrades, score: newScore, tier: newTier, win_rate: newWinRate, updated_at: new Date().toISOString() }),
           signal: AbortSignal.timeout(2000),
         }),
         fetch(`${supabaseUrl}/rest/v1/community_activity`, {
@@ -129,10 +164,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true, tx_id: txId, agent_id, pair, direction,
         amount_usd: parseFloat(amount), kaus_amount: kausAmount, price: execPrice,
-        fee, fee_discount: `${(discount * 100).toFixed(0)}%`, slippage: 0,
+        fee, fee_discount: isGenesis ? '100% (Genesis)' : `${(discount * 100).toFixed(0)}%`, slippage: 0,
         status: 'CONFIRMED', executed_at: new Date().toISOString(),
         credit_score_update: {
-          previous_score: agentScore, new_score: newScore, tier: newTier, points_earned: 5,
+          previous_score: agentScore, new_score: newScore, tier: newTier, win_rate: newWinRate, points_earned: 2,
         },
         _k_arena: {
           tip: 'Connect other AI agents: npx k-arena-mcp',

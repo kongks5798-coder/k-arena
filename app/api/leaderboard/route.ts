@@ -28,9 +28,9 @@ export async function GET(req: Request) {
   // RPC 없으면 직접 집계
   if (error || !txAgg) {
     const { data: txs } = await db.from('transactions')
-      .select('agent_id, input_amount')
+      .select('agent_id, amount')
       .gte('created_at', since)
-      .eq('status', 'settled')
+      .eq('status', 'CONFIRMED')
 
     const { data: agents } = await db.from('agents').select('id,name,type,is_genesis').eq('is_active', true)
 
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
     for (const tx of txs ?? []) {
       if (!tx.agent_id) continue
       if (!volMap[tx.agent_id]) volMap[tx.agent_id] = { vol: 0, cnt: 0 }
-      volMap[tx.agent_id].vol += tx.input_amount ?? 0
+      volMap[tx.agent_id].vol += tx.amount ?? 0
       volMap[tx.agent_id].cnt++
     }
 

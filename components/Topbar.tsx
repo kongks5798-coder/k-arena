@@ -13,8 +13,10 @@ const PATH_LABELS: Record<string, string> = {
   '/onboarding': 'join()',
   '/data': 'intelligence.run()',
   '/connect': 'mcp.connect()',
+  '/docs': 'mcp.docs()',
   '/pricing': 'pricing: free',
   '/dashboard': 'dashboard{}',
+  '/stats': 'system.status()',
 }
 
 export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {

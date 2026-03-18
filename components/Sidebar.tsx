@@ -17,6 +17,7 @@ const NAV = [
   { group: '// data + ai', items: [
     { href: '/data',        label: 'intelligence.run()',  badge: 'NEW' },
     { href: '/connect',     label: 'mcp.connect()',       badge: 'SDK' },
+    { href: '/docs',        label: 'mcp.docs()',          badge: 'NEW' },
     { href: '/pricing',     label: 'pricing: free',       badge: '' },
     { href: '/api/stats',   label: 'analytics()',         badge: 'API' },
   ]},

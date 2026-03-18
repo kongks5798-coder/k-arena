@@ -60,15 +60,13 @@ export default function HomePage() {
   const [activePeriod, setActivePeriod] = useState('24H')
   const [loading, setLoading] = useState(true)
 
-  const fetchAll = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const [txRes, statRes, sigRes] = await Promise.all([
-        fetch('/api/transactions?limit=20'),
+      const [statRes, sigRes] = await Promise.all([
         fetch('/api/stats'),
         fetch('/api/signals?limit=100'),
       ])
-      const [txData, statData, sigData] = await Promise.all([txRes.json(), statRes.json(), sigRes.json()])
-      if (Array.isArray(txData.transactions)) setTxs(txData.transactions)
+      const [statData, sigData] = await Promise.all([statRes.json(), sigRes.json()])
       const p = statData.platform ?? statData
       const today = new Date().toISOString().split('T')[0]
       const signalsToday = (sigData.signals ?? []).filter(
@@ -85,11 +83,27 @@ export default function HomePage() {
     setLoading(false)
   }, [])
 
+  // SSE for live transaction feed
   useEffect(() => {
-    fetchAll()
-    const timer = setInterval(fetchAll, 10000)
+    const es = new EventSource('/api/tx-stream')
+    es.addEventListener('snapshot', (e) => {
+      try { const d = JSON.parse(e.data); if (Array.isArray(d.transactions)) setTxs(d.transactions) } catch {}
+    })
+    es.addEventListener('update', (e) => {
+      try {
+        const d = JSON.parse(e.data)
+        if (Array.isArray(d.transactions) && d.transactions.length > 0)
+          setTxs(prev => [...d.transactions, ...prev].slice(0, 50))
+      } catch {}
+    })
+    return () => es.close()
+  }, [])
+
+  useEffect(() => {
+    fetchStats()
+    const timer = setInterval(fetchStats, 30000)
     return () => clearInterval(timer)
-  }, [fetchAll])
+  }, [fetchStats])
 
   const vol24h = stats.volume_24h ?? 0
   const recentTxs = txs.slice(0, 3)

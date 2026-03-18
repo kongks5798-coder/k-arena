@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         id: agentId, name: name.trim(), org: org?.trim() || 'Independent',
         status: 'ONLINE', vol_24h: 0, trades: 0, accuracy: 0,
-        wallet_address: wallet_address || null,
+        api_key: apiKey, wallet_address: wallet_address || null,
       }),
       signal: AbortSignal.timeout(3000),
     })
