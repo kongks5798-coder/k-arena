@@ -44,9 +44,8 @@ export async function GET(req: NextRequest) {
 
   if (supabaseUrl && supabaseKey) {
     try {
-      let url = `${supabaseUrl}/rest/v1/transactions?select=*&order=created_at.desc&limit=${limit}`
+      let url = `${supabaseUrl}/rest/v1/transactions?select=id,agent_id,from_currency,to_currency,input_amount,output_amount,rate,fee_kaus,settlement_ms,status,created_at&order=created_at.desc&limit=${limit}`
       if (agentId) url += `&agent_id=eq.${agentId}`
-      if (pair) url += `&pair=eq.${pair}`
 
       const r = await fetch(url, {
         headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
@@ -56,9 +55,12 @@ export async function GET(req: NextRequest) {
       if (r.ok) {
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) {
-          // agent_name 추가
+          // normalize to common shape for UI (pair = from/to, amount = input_amount)
           const enriched = data.map((tx: Record<string, unknown>) => ({
             ...tx,
+            pair: tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—',
+            amount: tx.input_amount,
+            fee: tx.fee_kaus,
             agent_name: MOCK_AGENTS[tx.agent_id as string] || tx.agent_id,
           }))
           return NextResponse.json({

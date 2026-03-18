@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 const SUPABASE_TRANSACTIONS_SELECT =
-  'id,agent_id,pair,amount,direction,fee,status,created_at'
+  'id,agent_id,from_currency,to_currency,input_amount,fee_kaus,status,created_at'
 
 function buildTxUrl(supabaseUrl: string, since?: string): string {
   const base = `${supabaseUrl}/rest/v1/transactions?select=${SUPABASE_TRANSACTIONS_SELECT}&order=created_at.desc&limit=10`
@@ -11,6 +11,16 @@ function buildTxUrl(supabaseUrl: string, since?: string): string {
 
 function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+}
+
+// Normalize DB row → UI shape (pair, amount, fee)
+function normalize(tx: Record<string, unknown>) {
+  return {
+    ...tx,
+    pair: tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—',
+    amount: tx.input_amount,
+    fee: tx.fee_kaus,
+  }
 }
 
 export async function GET(request: Request) {
@@ -46,7 +56,8 @@ export async function GET(request: Request) {
           signal: abortController.signal,
         })
         if (snapshotRes.ok) {
-          const transactions = await snapshotRes.json()
+          const raw = await snapshotRes.json()
+          const transactions = Array.isArray(raw) ? raw.map(normalize) : []
           controller.enqueue(encode(sseEvent('snapshot', { transactions })))
         } else {
           controller.enqueue(encode(sseEvent('snapshot', { transactions: [] })))
@@ -82,11 +93,12 @@ export async function GET(request: Request) {
           })
 
           if (updateRes.ok) {
-            const transactions: Array<{ created_at: string }> = await updateRes.json()
+            const rawUpd: Array<Record<string, unknown>> = await updateRes.json()
+            const transactions = rawUpd.map(normalize)
             if (transactions.length > 0) {
               controller.enqueue(encode(sseEvent('update', { transactions })))
               // Advance latestTimestamp to the most recent returned row
-              const newest = transactions[0].created_at
+              const newest = rawUpd[0]?.created_at as string | undefined
               if (newest && newest > latestTimestamp) {
                 latestTimestamp = newest
               }
