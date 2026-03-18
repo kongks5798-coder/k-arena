@@ -134,7 +134,37 @@ export async function POST(req: NextRequest) {
       // Parse pair 'BTC/KAUS' → from_currency='BTC', to_currency='KAUS'
       const [fromCurrency, toCurrency] = pair.split('/')
       const outputAmount = parseFloat((parseFloat(amount) * execPrice).toFixed(6))
-      const settlementMs = 850 + Math.floor(Date.now() % 500) // deterministic 850–1350ms
+      const settlementMs = 850 + Math.floor(Date.now() % 500)
+
+      // ── WALLET BALANCE CHECK & DEDUCTION ──────────────────────────
+      let walletBalance = 0
+      let walletExists = false
+      try {
+        const walletRes = await fetch(
+          `${supabaseUrl}/rest/v1/agent_wallets?agent_id=eq.${agent_id}&select=kaus_balance&limit=1`,
+          { headers: hRead, signal: AbortSignal.timeout(2000) }
+        )
+        if (walletRes.ok) {
+          const walletData = await walletRes.json()
+          if (Array.isArray(walletData) && walletData.length > 0) {
+            walletBalance = parseFloat(walletData[0].kaus_balance) ?? 0
+            walletExists = true
+          }
+        }
+      } catch {}
+
+      // Reject if wallet exists and balance insufficient for fee
+      if (walletExists && feeKaus > 0 && walletBalance < feeKaus) {
+        return NextResponse.json({
+          error: 'insufficient_balance',
+          required: feeKaus,
+          current: walletBalance,
+          currency: 'KAUS',
+        }, { status: 402 })
+      }
+
+      const newBalance = parseFloat((walletBalance - feeKaus).toFixed(6))
+      // ──────────────────────────────────────────────────────────────
 
       const newTrades = totalTrades + 1
       const newWinRate = totalTrades === 0 ? 60 : parseFloat(((winRate * totalTrades + 60) / newTrades).toFixed(1))
@@ -173,6 +203,18 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({ agent_id, activity_type: 'trade_executed', points: 5, metadata: { pair, direction, amount } }),
           signal: AbortSignal.timeout(2000),
         }),
+        // Deduct fee from agent wallet (upsert: create row if missing)
+        walletExists
+          ? fetch(`${supabaseUrl}/rest/v1/agent_wallets?agent_id=eq.${agent_id}`, {
+              method: 'PATCH', headers: hWrite,
+              body: JSON.stringify({ kaus_balance: newBalance, updated_at: new Date().toISOString() }),
+              signal: AbortSignal.timeout(2000),
+            })
+          : fetch(`${supabaseUrl}/rest/v1/agent_wallets`, {
+              method: 'POST', headers: { ...hWrite, Prefer: 'return=minimal,resolution=ignore-duplicates' },
+              body: JSON.stringify({ agent_id, kaus_balance: Math.max(0, 100 - feeKaus) }),
+              signal: AbortSignal.timeout(2000),
+            }),
       ])
 
       return NextResponse.json({
@@ -180,6 +222,7 @@ export async function POST(req: NextRequest) {
         amount_usd: parseFloat(amount), kaus_amount: kausAmount, price: execPrice,
         fee: feeKaus, fee_discount: isGenesis ? '100% (Genesis)' : `${(discount * 100).toFixed(0)}%`, slippage: 0,
         status: 'CONFIRMED', executed_at: new Date().toISOString(),
+        wallet: { previous_balance: walletBalance, fee_deducted: feeKaus, new_balance: newBalance, currency: 'KAUS' },
         credit_score_update: {
           previous_score: agentScore, new_score: newScore, tier: newTier, win_rate: newWinRate, points_earned: 2,
         },
