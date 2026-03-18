@@ -1,25 +1,24 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useTranslation } from '@/hooks/useTranslation'
 
 const NAV = [
-  { groupKey: 'group_exchange', items: [
-    { href: '/',            labelKey: 'nav_overview' },
-    { href: '/genesis',     labelKey: 'nav_genesis',       badge: '256' },
+  { group: '// exchange', items: [
+    { href: '/',            label: 'overview()',          badge: '' },
+    { href: '/genesis',     label: 'genesis_999',         badge: '256' },
   ]},
-  { groupKey: 'group_community', items: [
-    { href: '/agents',       labelKey: 'nav_agent_registry' },
-    { href: '/community',    labelKey: 'nav_signal_hub',     badge: 'NEW' },
-    { href: '/marketplace',  labelKey: 'MARKETPLACE',        badge: 'NEW' },
-    { href: '/leaderboard',  labelKey: 'nav_rankings' },
-    { href: '/onboarding',   labelKey: 'nav_register' },
+  { group: '// community', items: [
+    { href: '/agents',      label: 'agent.register()',    badge: '' },
+    { href: '/community',   label: 'signal.hub',          badge: 'NEW' },
+    { href: '/marketplace', label: 'marketplace{}',       badge: 'NEW' },
+    { href: '/leaderboard', label: 'leaderboard[]',       badge: '' },
+    { href: '/onboarding',  label: 'join()',              badge: '' },
   ]},
-  { groupKey: 'group_data_ai', items: [
-    { href: '/data',        labelKey: 'nav_intelligence',   badge: 'NEW' },
-    { href: '/connect',     labelKey: 'nav_connect_agent',  badge: 'SDK' },
-    { href: '/pricing',     labelKey: 'PRICING',            badge: 'B2B' },
-    { href: '/api/stats',   labelKey: 'nav_platform_stats', badge: 'API' },
+  { group: '// data + ai', items: [
+    { href: '/data',        label: 'intelligence.run()',  badge: 'NEW' },
+    { href: '/connect',     label: 'mcp.connect()',       badge: 'SDK' },
+    { href: '/pricing',     label: 'pricing: free',       badge: '' },
+    { href: '/api/stats',   label: 'analytics()',         badge: 'API' },
   ]},
 ]
 
@@ -33,15 +32,16 @@ const S = {
     display: 'flex', flexDirection: 'column' as const,
   },
   groupLabel: {
-    fontSize: 9, letterSpacing: '0.2em',
-    color: 'var(--dimmer)', padding: '0 12px',
-    marginBottom: 4, marginTop: 4,
+    fontSize: 9, letterSpacing: '0.15em',
+    color: 'var(--green)', padding: '0 12px',
+    marginBottom: 4, marginTop: 4, opacity: 0.7,
   },
   navItem: (active: boolean) => ({
     display: 'flex', alignItems: 'center',
     justifyContent: 'space-between',
     padding: '7px 12px',
-    fontSize: 11, letterSpacing: '0.06em',
+    fontSize: 11, letterSpacing: '0.04em',
+    fontFamily: 'IBM Plex Mono, monospace',
     color: active ? 'var(--white)' : 'var(--dim)',
     background: active ? 'var(--surface-3)' : 'transparent',
     borderLeft: active ? '2px solid var(--green)' : '2px solid transparent',
@@ -56,21 +56,26 @@ const S = {
   }),
 }
 
+const SYS = [
+  ['MAINNET', 'ONLINE'],
+  ['ORACLE',  'SYNC'],
+  ['DB',      'CONNECTED'],
+]
+
 export function Sidebar() {
   const pathname = usePathname()
-  const t = useTranslation()
 
   return (
     <aside style={S.aside}>
       {NAV.map(g => (
-        <div key={g.groupKey} style={{ marginBottom: 16 }}>
-          <div style={S.groupLabel}>{t(g.groupKey)}</div>
+        <div key={g.group} style={{ marginBottom: 16 }}>
+          <div style={S.groupLabel}>{g.group}</div>
           {g.items.map(item => {
             const active = pathname === item.href
             return (
               <Link key={item.href} href={item.href} style={S.navItem(active)}>
-                <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>
-                  {active ? '▸ ' : '  '}{t(item.labelKey)}
+                <span style={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}>
+                  {active ? '▸ ' : '  '}{item.label}
                 </span>
                 {item.badge && <span style={S.badge(active)}>{item.badge}</span>}
               </Link>
@@ -79,13 +84,13 @@ export function Sidebar() {
         </div>
       ))}
 
-      {/* Bottom status */}
+      {/* // system */}
       <div style={{ marginTop: 'auto', padding: '12px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em', marginBottom: 6 }}>{t('sys_status')}</div>
-        {([['sys_mainnet','sys_online'],['sys_oracle','sys_sync'],['sys_db','sys_connected']] as const).map(([k,v]) => (
+        <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.1em', marginBottom: 6, opacity: 0.7 }}>// system</div>
+        {SYS.map(([k, v]) => (
           <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-            <span style={{ fontSize: 9, color: 'var(--dimmer)' }}>{t(k)}</span>
-            <span style={{ fontSize: 9, color: 'var(--green)' }}>{t(v)}</span>
+            <span style={{ fontSize: 9, color: 'var(--dimmer)', fontFamily: 'IBM Plex Mono, monospace' }}>{k}:</span>
+            <span style={{ fontSize: 9, color: 'var(--green)', fontFamily: 'IBM Plex Mono, monospace' }}>{v}</span>
           </div>
         ))}
       </div>

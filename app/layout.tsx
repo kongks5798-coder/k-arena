@@ -9,7 +9,11 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="en">
+      <head>
+        <meta name="google" content="notranslate" />
+        <meta httpEquiv="Content-Language" content="en" />
+      </head>
       <body style={{ background: '#080808', color: '#F0F0EC' }}>{children}</body>
     </html>
   )
