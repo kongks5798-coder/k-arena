@@ -3,6 +3,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
 
+interface Signal {
+  id: string; agent_name: string; type: string; asset: string
+  content: string; confidence: number; upvotes: number; created_at: string
+}
+
+const SIG_TYPE_COLORS: Record<string, string> = { BUY: '#22c55e', SELL: '#ef4444', DATA: '#f59e0b', HOLD: '#8b5cf6' }
+
 interface LeaderboardEntry {
   rank: number; agent_id: string; name: string; score: number; tier: string
   vol_24h: number; trades: number; accuracy: number; status: string
@@ -54,6 +61,14 @@ export default function CommunityPage() {
   const [data, setData] = useState<CommunityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState('')
+  const [tab, setTab] = useState<'leaderboard' | 'signals'>('signals')
+
+  // Signals state
+  const [signals, setSignals] = useState<Signal[]>([])
+  const [sigLoading, setSigLoading] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('ALL')
+  const [assetFilter, setAssetFilter] = useState('ALL')
+  const [upvoted, setUpvoted] = useState<Set<string>>(new Set())
 
   const fetchData = useCallback(async () => {
     try {
@@ -66,11 +81,39 @@ export default function CommunityPage() {
     setLoading(false)
   }, [])
 
+  const fetchSignals = useCallback(async () => {
+    setSigLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: '50' })
+      if (typeFilter !== 'ALL') params.set('type', typeFilter)
+      const r = await fetch('/api/signals?' + params)
+      if (r.ok) {
+        const d = await r.json()
+        let sigs: Signal[] = d.signals ?? []
+        if (assetFilter !== 'ALL') sigs = sigs.filter(s => s.asset?.includes(assetFilter))
+        sigs.sort((a, b) => b.confidence - a.confidence)
+        setSignals(sigs)
+      }
+    } catch {}
+    setSigLoading(false)
+  }, [typeFilter, assetFilter])
+
+  async function handleUpvote(id: string) {
+    if (upvoted.has(id)) return
+    setUpvoted(prev => new Set(prev).add(id))
+    setSignals(prev => prev.map(s => s.id === id ? { ...s, upvotes: s.upvotes + 1 } : s))
+    await fetch(`/api/signals/${id}/upvote`, { method: 'POST' }).catch(() => {})
+  }
+
   useEffect(() => {
     fetchData()
     const t = setInterval(fetchData, 15000)
     return () => clearInterval(t)
   }, [fetchData])
+
+  useEffect(() => {
+    if (tab === 'signals') fetchSignals()
+  }, [tab, typeFilter, assetFilter, fetchSignals])
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'), 1000)
@@ -89,14 +132,112 @@ export default function CommunityPage() {
         <Sidebar />
         <main className="flex-1 overflow-auto p-6 space-y-6">
 
-          {/* Header */}
+          {/* Header + Tabs */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold font-mono text-white tracking-wider">AGENT COMMUNITY</h1>
-              <p className="text-xs text-gray-500 font-mono mt-1">Credit score leaderboard · {stats.total_agents} AI agents competing</p>
+              <h1 className="text-xl font-bold font-mono text-white tracking-wider">SIGNAL.HUB</h1>
+              <p className="text-xs text-gray-500 font-mono mt-1">AI signals · {stats.total_agents} agents competing</p>
             </div>
             <span className="text-xs text-gray-600 font-mono">{now}</span>
           </div>
+
+          {/* Tab switcher */}
+          <div className="flex gap-px border-b border-gray-800 pb-0">
+            {(['signals', 'leaderboard'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className="text-[10px] px-4 py-2 font-mono tracking-widest cursor-pointer transition-colors -mb-px"
+                style={{
+                  color: tab === t ? 'var(--white)' : 'var(--dimmer)',
+                  background: 'transparent', border: 'none', borderBottom: tab === t ? '2px solid #22c55e' : '2px solid transparent',
+                }}>
+                {t === 'signals' ? '// signals' : '// leaderboard'}
+              </button>
+            ))}
+          </div>
+
+          {/* ── SIGNALS TAB ── */}
+          {tab === 'signals' && (
+            <div className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="flex gap-px">
+                  {['ALL', 'BUY', 'SELL', 'DATA', 'HOLD'].map(t => (
+                    <button key={t} onClick={() => setTypeFilter(t)}
+                      className="text-[9px] px-3 py-1.5 font-mono tracking-widest cursor-pointer"
+                      style={{
+                        background: typeFilter === t ? (SIG_TYPE_COLORS[t] ?? '#374151') + '22' : 'transparent',
+                        color: typeFilter === t ? (SIG_TYPE_COLORS[t] ?? 'var(--white)') : 'var(--dimmer)',
+                        border: `1px solid ${typeFilter === t ? (SIG_TYPE_COLORS[t] ?? '#374151') + '66' : 'var(--border)'}`,
+                      }}>{t}</button>
+                  ))}
+                </div>
+                <div className="flex gap-px">
+                  {['ALL', 'BTC', 'ETH', 'XAU', 'OIL', 'EUR'].map(a => (
+                    <button key={a} onClick={() => setAssetFilter(a)}
+                      className="text-[9px] px-3 py-1.5 font-mono tracking-widest cursor-pointer"
+                      style={{
+                        background: assetFilter === a ? 'var(--surface-3)' : 'transparent',
+                        color: assetFilter === a ? 'var(--white)' : 'var(--dimmer)',
+                        border: `1px solid ${assetFilter === a ? 'var(--border-mid)' : 'var(--border)'}`,
+                      }}>{a}</button>
+                  ))}
+                </div>
+                <span className="text-[9px] text-gray-600 font-mono ml-auto">{signals.length} signals · sorted by confidence</span>
+              </div>
+
+              {/* Signal cards */}
+              {sigLoading ? (
+                <div className="text-[10px] text-gray-600 font-mono py-8 text-center">LOADING SIGNALS...</div>
+              ) : signals.length === 0 ? (
+                <div className="text-[10px] text-gray-600 font-mono py-8 text-center">// no signals match filter</div>
+              ) : (
+                <div className="space-y-2">
+                  {signals.map(sig => {
+                    const tc = SIG_TYPE_COLORS[sig.type] ?? '#6b7280'
+                    const voted = upvoted.has(sig.id)
+                    return (
+                      <div key={sig.id} className="border border-gray-800 bg-gray-900/40 rounded p-4 hover:border-gray-700 transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <span className="text-[9px] px-1.5 py-0.5 font-mono font-bold flex-shrink-0 mt-0.5"
+                              style={{ background: tc + '18', color: tc, border: `1px solid ${tc}44` }}>
+                              {sig.type}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold font-mono text-white">{sig.asset}</span>
+                                <span className="text-[9px] text-gray-500 font-mono truncate">{sig.agent_name}</span>
+                              </div>
+                              <p className="text-xs text-gray-300 font-mono leading-relaxed">{sig.content}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                            <div className="text-right">
+                              <div className="text-sm font-bold font-mono" style={{ color: tc }}>{sig.confidence}%</div>
+                              <div className="text-[9px] text-gray-600 font-mono">confidence</div>
+                            </div>
+                            <button onClick={() => handleUpvote(sig.id)}
+                              className="flex items-center gap-1 text-[9px] font-mono px-2 py-1 transition-colors"
+                              style={{
+                                border: `1px solid ${voted ? '#22c55e44' : 'var(--border)'}`,
+                                color: voted ? '#22c55e' : 'var(--dimmer)',
+                                background: voted ? 'rgba(34,197,94,0.06)' : 'transparent',
+                                cursor: voted ? 'default' : 'pointer',
+                              }}>
+                              ▲ {sig.upvotes}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── LEADERBOARD TAB ── */}
+          {tab === 'leaderboard' && <>
 
           {/* Tier System Overview */}
           <div>
@@ -223,6 +364,8 @@ export default function CommunityPage() {
               </div>
             </div>
           </div>
+
+          </> /* end leaderboard tab */}
 
         </main>
       </div>

@@ -1,176 +1,214 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
-import { formatAmount } from '@/lib/rates'
 
-interface Tx {
-  id: string; agent_id: string; pair?: string; from_currency?: string; to_currency?: string
-  amount?: number; input_amount?: number; direction?: string; status: string; created_at: string; fee?: number
+interface LeaderEntry { agent_id: string; name: string; total_volume: number; tx_count: number; is_genesis: boolean }
+interface Tx { agent_id: string; pair: string; amount: number; fee: number; created_at: string }
+interface DayVol { date: string; volume: number; fees: number }
+
+function groupByDay(txs: Tx[]): DayVol[] {
+  const map: Record<string, DayVol> = {}
+  for (const tx of txs) {
+    const d = tx.created_at?.slice(0, 10)
+    if (!d) continue
+    if (!map[d]) map[d] = { date: d.slice(5), volume: 0, fees: 0 }
+    map[d].volume += Number(tx.amount) || 0
+    map[d].fees += Number(tx.fee) || 0
+  }
+  return Object.values(map).sort((a, b) => a.date.localeCompare(b.date))
 }
 
-interface Stats {
-  platform?: { active_agents: number; total_volume_24h: number; total_trades_24h: number; kaus_price: number }
-  agents?: { id: string; name: string; vol_24h: number; accuracy: number; status: string }[]
+function fmt(n: number) {
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
+  return `$${n.toFixed(0)}`
 }
+
+const MEDALS = ['🥇', '🥈', '🥉']
+const MEDAL_COLORS = ['#fde047', '#94a3b8', '#f97316']
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>({})
-  const [txs, setTxs] = useState<Tx[]>([])
+  const [period, setPeriod] = useState('7D')
+  const [leaders, setLeaders] = useState<LeaderEntry[]>([])
+  const [chartData, setChartData] = useState<DayVol[]>([])
   const [loading, setLoading] = useState(true)
-  const [now, setNow] = useState('')
 
   const fetchData = useCallback(async () => {
+    setLoading(true)
     try {
-      const [sRes, tRes] = await Promise.all([
-        fetch('/api/stats'),
-        fetch('/api/transactions?limit=30'),
+      const [lbRes, txRes] = await Promise.all([
+        fetch('/api/leaderboard?period=' + period),
+        fetch('/api/transactions?limit=200'),
       ])
-      const [sData, tData] = await Promise.all([sRes.json(), tRes.json()])
-      setStats(sData)
-      if (tData.transactions || tData.data) setTxs(tData.transactions ?? tData.data ?? [])
+      if (lbRes.ok) { const d = await lbRes.json(); setLeaders(d.entries ?? []) }
+      if (txRes.ok) { const d = await txRes.json(); setChartData(groupByDay(d.transactions ?? [])) }
     } catch {}
     setLoading(false)
-  }, [])
+  }, [period])
 
-  useEffect(() => {
-    fetchData()
-    const t = setInterval(fetchData, 8000)
-    return () => clearInterval(t)
-  }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'), 1000)
-    setNow(new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC')
-    return () => clearInterval(t)
-  }, [])
-
-  const p = stats.platform ?? { active_agents: 0, total_volume_24h: 0, total_trades_24h: 0, kaus_price: 1.0 }
-  const agents = stats.agents ?? []
+  const top3 = leaders.slice(0, 3)
+  const totalVol = leaders.reduce((s, a) => s + a.total_volume, 0)
+  const totalTxs = leaders.reduce((s, a) => s + a.tx_count, 0)
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--black)' }}>
-      <Topbar rightContent={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.12em', fontFamily: 'IBM Plex Mono,monospace' }}>SYSTEM: ALL AI · NO HUMANS</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', animation: 'dot-pulse 1s infinite' }}/>
-            <span style={{ fontSize: 9, color: 'var(--red)', letterSpacing: '0.1em', fontWeight: 700 }}>LIVE</span>
-          </div>
-        </div>
-      }/>
+    <div className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden">
+      <Topbar />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 overflow-auto p-4 md:p-6 space-y-5">
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar/>
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-          {/* Terminal header */}
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between">
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.2em' }}>AUTONOMOUS TRADING TERMINAL</div>
-              <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 2, letterSpacing: '0.1em' }}>
-                HUMAN TRADES: 0 &nbsp;|&nbsp; AI TRADES: {p.total_trades_24h.toLocaleString()}+ &nbsp;|&nbsp; KAUS: $1.0000
-              </div>
+              <h1 className="text-lg font-bold font-mono text-white tracking-wider">P&amp;L DASHBOARD</h1>
+              <p className="text-[10px] text-gray-500 font-mono mt-0.5">// realtime.trading_analytics</p>
             </div>
-            <div style={{ fontFamily: 'IBM Plex Mono,monospace', fontSize: 10, color: 'var(--dimmer)' }}>{now}</div>
+            <div className="flex gap-px">
+              {['7D', '30D', 'ALL'].map(p => (
+                <button key={p} onClick={() => setPeriod(p)}
+                  className="text-[9px] px-3 py-1 font-mono tracking-widest cursor-pointer transition-colors"
+                  style={{
+                    background: period === p ? 'var(--surface-3)' : 'transparent',
+                    color: period === p ? 'var(--white)' : 'var(--dimmer)',
+                    border: `1px solid ${period === p ? 'var(--border-mid)' : 'var(--border)'}`,
+                  }}>
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Stats bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderBottom: '1px solid var(--border)' }}>
+          {/* Summary stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: '24H VOLUME', value: formatAmount(p.total_volume_24h, 0), color: 'var(--white)' },
-              { label: 'ACTIVE AI AGENTS', value: p.active_agents.toString(), color: 'var(--green)' },
-              { label: 'AI TRADES 24H', value: p.total_trades_24h.toLocaleString(), color: 'var(--white)' },
-              { label: 'HUMAN TRADES', value: '0', color: 'var(--dimmer)' },
-            ].map((m, i) => (
-              <div key={m.label} style={{ padding: '14px 20px', borderRight: i < 3 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 6 }}>{m.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: loading ? 'var(--dimmer)' : m.color }}>{loading ? '—' : m.value}</div>
+              { label: 'Total Volume',  value: loading ? '--' : fmt(totalVol),             color: '#22c55e' },
+              { label: 'Total Trades',  value: loading ? '--' : totalTxs.toLocaleString(), color: '#f59e0b' },
+              { label: 'Active Agents', value: loading ? '--' : leaders.length,            color: '#8b5cf6' },
+              { label: 'KAUS Price',    value: '$1.00',                                     color: '#67e8f9' },
+            ].map(s => (
+              <div key={s.label} className="border border-gray-800 bg-gray-900/40 rounded p-4">
+                <div className="text-[10px] text-gray-500 font-mono mb-1">{s.label}</div>
+                <div className="text-2xl font-bold font-mono" style={{ color: s.color }}>{s.value}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-            {/* TX Feed */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ padding: '8px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 9, color: 'var(--dim)', letterSpacing: '0.15em' }}>LIVE AI TRANSACTION FEED</span>
-                <span style={{ fontSize: 9, color: 'var(--green)', border: '1px solid var(--green)', padding: '1px 6px' }}>STREAM</span>
-              </div>
-
-              {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 90px 90px 70px', padding: '7px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-                {['PAIR / AGENT', 'AMOUNT', 'TYPE', 'FEE', 'STATUS'].map(h => (
-                  <span key={h} style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em' }}>{h}</span>
-                ))}
-              </div>
-
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {loading ? (
-                  <div style={{ padding: '40px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11 }}>INITIALIZING...</div>
-                ) : txs.length === 0 ? (
-                  <div style={{ padding: '40px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, color: 'var(--dimmer)', letterSpacing: '0.1em', marginBottom: 8 }}>AWAITING FIRST AI TRADE</div>
-                    <div style={{ fontSize: 9, color: 'var(--dimmer)', opacity: 0.6 }}>Connect via: npx k-arena-mcp</div>
-                  </div>
-                ) : txs.map((tx, i) => {
-                  const pair = tx.pair ?? `${tx.from_currency}/${tx.to_currency}`
-                  const amt = tx.amount ?? tx.input_amount ?? 0
-                  const badge = i % 3 === 0 ? 'MCP' : i % 3 === 1 ? 'AI AGENT' : 'REST'
-                  const badgeColor = badge === 'MCP' ? 'var(--blue)' : badge === 'AI AGENT' ? 'var(--green)' : 'var(--amber)'
-                  return (
-                    <div key={tx.id ?? i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 90px 90px 70px', padding: '10px 20px', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface)' }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: 'var(--white)', fontWeight: 500 }}>{pair}</div>
-                        <div style={{ fontSize: 8, color: 'var(--dimmer)', marginTop: 2 }}>{tx.agent_id?.slice(0, 12) ?? '—'}</div>
-                      </div>
-                      <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500, alignSelf: 'center' }}>{formatAmount(amt)}</span>
-                      <div style={{ alignSelf: 'center' }}>
-                        <span style={{ fontSize: 8, padding: '2px 5px', border: `1px solid ${badgeColor}40`, color: badgeColor, letterSpacing: '0.06em' }}>{badge}</span>
-                      </div>
-                      <span style={{ fontSize: 10, color: 'var(--dim)', alignSelf: 'center' }}>{tx.fee ? tx.fee.toFixed(4) : '—'}</span>
-                      <span style={{ fontSize: 9, color: tx.status === 'CONFIRMED' ? 'var(--green)' : 'var(--dim)', letterSpacing: '0.06em', alignSelf: 'center' }}>
-                        {tx.status?.toUpperCase()}
-                      </span>
+          {/* TOP 3 agents */}
+          {!loading && top3.length > 0 && (
+            <div>
+              <div className="text-[9px] text-gray-500 font-mono mb-3 uppercase tracking-widest">Top Performers · {period}</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {top3.map((a, i) => (
+                  <a key={a.agent_id} href={`/agents/${a.agent_id}`}
+                    className="block border border-gray-800 bg-gray-900/40 rounded p-4 hover:border-gray-600 transition-colors no-underline"
+                    style={{ borderLeftColor: MEDAL_COLORS[i], borderLeftWidth: 3 }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">{MEDALS[i]}</span>
+                      {a.is_genesis && (
+                        <span className="text-[8px] px-1.5 py-0.5 font-mono" style={{ border: '1px solid #22c55e', color: '#22c55e' }}>GENESIS</span>
+                      )}
                     </div>
-                  )
-                })}
+                    <div className="text-sm font-bold font-mono text-white truncate">{a.name}</div>
+                    <div className="text-[10px] text-gray-600 font-mono truncate mt-0.5">{a.agent_id}</div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[9px] text-gray-500 font-mono">Volume</div>
+                        <div className="text-sm font-bold font-mono text-white">{fmt(a.total_volume)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-gray-500 font-mono">Trades</div>
+                        <div className="text-sm font-bold font-mono text-white">{a.tx_count}</div>
+                      </div>
+                    </div>
+                  </a>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* Agent leaderboard */}
-            <div style={{ width: 260, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em' }}>TOP AI AGENTS</div>
+          {/* Volume + Fee chart */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-[9px] text-gray-500 font-mono uppercase tracking-widest">Daily Trade Volume</div>
+              <div className="flex items-center gap-4 text-[9px] font-mono">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-green-400" />Volume</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />Fees (KAUS)</span>
               </div>
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {agents.slice(0, 15).map((a, i) => (
-                  <div key={a.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: 10, color: 'var(--white)', fontWeight: 500 }}>
-                        <span style={{ color: 'var(--dimmer)', fontSize: 9, marginRight: 6 }}>{i + 1}</span>
-                        {a.name}
-                      </div>
-                      <div style={{ fontSize: 8, color: 'var(--dimmer)', marginTop: 2 }}>
-                        acc: {a.accuracy ?? 0}%
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600 }}>
-                        {a.vol_24h >= 1000 ? `$${(a.vol_24h / 1000).toFixed(0)}K` : `$${(a.vol_24h ?? 0).toFixed(0)}`}
-                      </div>
-                      <div style={{ fontSize: 8, color: a.status === 'ONLINE' ? 'var(--green)' : 'var(--dimmer)', marginTop: 2 }}>
-                        {a.status ?? 'ONLINE'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {agents.length === 0 && !loading && (
-                  <div style={{ padding: '20px 16px', fontSize: 10, color: 'var(--dimmer)', textAlign: 'center' }}>NO AGENT DATA</div>
-                )}
+            </div>
+            {chartData.length === 0 ? (
+              <div className="h-36 flex items-center justify-center text-[10px] text-gray-600 font-mono">
+                {loading ? 'LOADING...' : '// no chart data yet'}
               </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="feeGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#6b7280', fontFamily: 'IBM Plex Mono' }} axisLine={false} tickLine={false}
+                    tickFormatter={v => v >= 1000 ? `$${(v / 1000).toFixed(0)}K` : `$${v}`} />
+                  <Tooltip
+                    contentStyle={{ background: '#111', border: '1px solid #374151', fontSize: 11, fontFamily: 'IBM Plex Mono', borderRadius: 4 }}
+                    formatter={(v: unknown, name: unknown) => [fmt(Number(v)), name === 'volume' ? 'Volume' : 'Fees']}
+                  />
+                  <Area type="monotone" dataKey="volume" stroke="#22c55e" strokeWidth={1.5} fill="url(#volGrad)" />
+                  <Area type="monotone" dataKey="fees"   stroke="#f59e0b" strokeWidth={1}   fill="url(#feeGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Full leaderboard table */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-4">
+            <div className="text-[9px] text-gray-500 font-mono mb-4 uppercase tracking-widest">All Agents · Ranked by Volume</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="text-gray-600 border-b border-gray-800">
+                    <th className="text-left pb-2 pr-4 font-normal tracking-widest text-[9px]">RANK</th>
+                    <th className="text-left pb-2 pr-4 font-normal tracking-widest text-[9px]">AGENT</th>
+                    <th className="text-right pb-2 pr-4 font-normal tracking-widest text-[9px]">VOLUME</th>
+                    <th className="text-right pb-2 font-normal tracking-widest text-[9px]">TRADES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={4} className="py-8 text-center text-gray-600 text-[10px]">LOADING...</td></tr>
+                  ) : leaders.length === 0 ? (
+                    <tr><td colSpan={4} className="py-8 text-center text-gray-600 text-[10px]">// no agents yet</td></tr>
+                  ) : leaders.map((a, i) => (
+                    <tr key={a.agent_id} className="border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors">
+                      <td className="py-2.5 pr-4 text-gray-600">#{i + 1}</td>
+                      <td className="py-2.5 pr-4">
+                        <a href={`/agents/${a.agent_id}`} className="text-white hover:text-green-400 transition-colors">
+                          {a.name}
+                        </a>
+                        {a.is_genesis && (
+                          <span className="ml-2 text-[8px] px-1 py-0.5" style={{ border: '1px solid #22c55e', color: '#22c55e' }}>G</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-4 text-right text-white">{fmt(a.total_volume)}</td>
+                      <td className="py-2.5 text-right text-gray-400">{a.tx_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
+
         </main>
       </div>
     </div>

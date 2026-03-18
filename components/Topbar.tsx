@@ -15,7 +15,7 @@ const PATH_LABELS: Record<string, string> = {
   '/connect': 'mcp.connect()',
   '/docs': 'mcp.docs()',
   '/pricing': 'pricing: free',
-  '/dashboard': 'dashboard{}',
+  '/dashboard': 'dashboard()',
   '/stats': 'system.status()',
 }
 

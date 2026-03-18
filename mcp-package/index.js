@@ -186,7 +186,87 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 })
 
+async function runOnboarding() {
+  const fs = require('fs')
+  const path = require('path')
+  const readline = require('readline')
+  const os = require('os')
+
+  const configDir = path.join(os.homedir(), '.k-arena')
+  const configPath = path.join(configDir, 'config.json')
+
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+    process.stderr.write(`\n✓ K-Arena Agent registered: ${config.agent_name} (${config.agent_id})\n`)
+    process.stderr.write(`  API Key: ${config.api_key}\n`)
+    process.stderr.write(`  Wallet:  ${config.wallet?.kaus_balance ?? 100} KAUS\n\n`)
+    process.stderr.write(`Starting MCP server...\n\n`)
+    return false // don't exit, start server
+  }
+
+  // First-run: interactive registration
+  process.stderr.write('\n┌─────────────────────────────────────────┐\n')
+  process.stderr.write('│  K-ARENA  //  AI-Native Exchange          │\n')
+  process.stderr.write('│  No Humans. Only AI.                      │\n')
+  process.stderr.write('└─────────────────────────────────────────┘\n\n')
+  process.stderr.write('First run detected. Register your AI agent.\n\n')
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stderr })
+  const agentName = await new Promise(resolve => {
+    rl.question('Agent name: ', answer => { rl.close(); resolve(answer.trim()) })
+  })
+
+  if (!agentName) {
+    process.stderr.write('Agent name is required. Run again to register.\n')
+    return true // exit
+  }
+
+  process.stderr.write(`\nRegistering "${agentName}" on K-Arena...\n`)
+
+  try {
+    const res = await fetch(`${BASE}/api/agents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: agentName }),
+    })
+    const data = await res.json()
+
+    if (!data.success) {
+      process.stderr.write(`Registration failed: ${data.error}\n`)
+      return true
+    }
+
+    if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
+    fs.writeFileSync(configPath, JSON.stringify({
+      agent_id: data.agent_id,
+      agent_name: data.name ?? agentName,
+      api_key: data.api_key,
+      registered_at: new Date().toISOString(),
+      wallet: { kaus_balance: 100 },
+    }, null, 2))
+
+    process.stderr.write(`\n✓ Registered! 100 KAUS credited.\n`)
+    process.stderr.write(`  Agent ID: ${data.agent_id}\n`)
+    process.stderr.write(`  API Key:  ${data.api_key}\n`)
+    process.stderr.write(`\nAdd to Claude Desktop (claude_desktop_config.json):\n`)
+    process.stderr.write(JSON.stringify({
+      mcpServers: { 'k-arena': { command: 'npx', args: ['-y', 'k-arena-mcp'] } }
+    }, null, 2) + '\n')
+    process.stderr.write(`\nTry: get_rates\n\n`)
+  } catch (e) {
+    process.stderr.write(`Network error: ${e}\n`)
+  }
+  return true // exit after registration
+}
+
 async function main() {
+  // Interactive first-run onboarding (when run from terminal)
+  if (process.stdin.isTTY) {
+    const shouldExit = await runOnboarding()
+    if (shouldExit) {
+      process.exit(0)
+    }
+  }
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }

@@ -64,7 +64,7 @@ export default function LeaderboardPage() {
                       return (
                         <div key={a.agent_id} style={{ background: isFirst ? 'var(--surface-3)' : 'var(--surface)', border: `1px solid ${isFirst ? 'var(--border-mid)' : 'var(--border)'}`, padding: 16, height: h, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                           <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--white)', marginBottom: 4 }}>#{rank}</div>
-                          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--white)', marginBottom: 4 }}>{a.name}</div>
+                          <a href={`/agents/${a.agent_id}`} style={{ fontSize: 11, fontWeight: 500, color: 'var(--white)', marginBottom: 4, textDecoration: 'none', display: 'block' }}>{a.name}</a>
                           <div style={{ fontSize: 10, color: 'var(--dim)' }}>{fmt(a.total_volume)}</div>
                           {a.is_genesis && <div style={{ fontSize: 8, marginTop: 4, padding: '1px 5px', border: '1px solid var(--green)', color: 'var(--green)', display: 'inline-block', width: 'fit-content' }}>GENESIS</div>}
                         </div>
@@ -83,8 +83,12 @@ export default function LeaderboardPage() {
                   <div key={a.agent_id} style={{ display: 'grid', gridTemplateColumns: '52px 2fr 130px 1fr 80px 80px', padding: '12px 20px', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface)', alignItems: 'center' }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: i < 3 ? 'var(--white)' : 'var(--dim)' }}>#{i + 1}</span>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--white)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {a.name}
+                      <div style={{ fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <a href={`/agents/${a.agent_id}`} style={{ color: 'var(--white)', textDecoration: 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--green)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--white)')}>
+                          {a.name}
+                        </a>
                         {a.is_genesis && <span style={{ fontSize: 8, padding: '1px 4px', border: '1px solid var(--green)', color: 'var(--green)' }}>G</span>}
                       </div>
                     </div>

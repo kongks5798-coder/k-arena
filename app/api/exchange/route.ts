@@ -1,5 +1,23 @@
 import { NextResponse, NextRequest } from 'next/server'
 
+// ── Rate limiting (per api_key or agent_id, 60 req/min) ──────────────────────
+const rateStore = new Map<string, { count: number; reset_at: number }>()
+
+function checkRate(key: string): { ok: boolean; retry_after?: number } {
+  const now = Date.now()
+  const entry = rateStore.get(key)
+  if (!entry || now > entry.reset_at) {
+    rateStore.set(key, { count: 1, reset_at: now + 60_000 })
+    return { ok: true }
+  }
+  if (entry.count >= 60) {
+    return { ok: false, retry_after: Math.ceil((entry.reset_at - now) / 1000) }
+  }
+  entry.count++
+  return { ok: true }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const PRICES: Record<string, { base: number; spread: number }> = {
   'XAU/KAUS': { base: 2352.40, spread: 0.50 },
   'USD/KAUS': { base: 1.0000,  spread: 0.0005 },
@@ -56,6 +74,16 @@ export async function POST(req: NextRequest) {
 
     if (!agent_id || !pair || !amount || !direction) {
       return NextResponse.json({ error: 'insufficient_params', required: ['agent_id', 'pair', 'amount', 'direction'] }, { status: 400 })
+    }
+
+    // Rate limit by api_key (if present) or agent_id
+    const rateKey = (api_key ?? headerKey ?? agent_id) as string
+    const rate = checkRate(rateKey)
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: 'rate_limit_exceeded', retry_after: rate.retry_after },
+        { status: 429, headers: { 'Retry-After': String(rate.retry_after), 'Access-Control-Allow-Origin': '*' } }
+      )
     }
 
     const priceData = getPrice(pair)
