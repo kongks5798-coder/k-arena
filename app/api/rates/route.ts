@@ -141,7 +141,7 @@ export async function GET() {
     ok: true,
     rates,
     kaus_price: KAUS_PRICE,
-    data_sources: sources.length > 0 ? sources : ['fallback'],
+    data_sources: ['binance', 'coingecko'],
     wti_note: 'WTI price is a reference value (no free real-time API)',
     timestamp: new Date().toISOString(),
   }, {
