@@ -7,6 +7,15 @@ import Link from 'next/link'
 interface Agent { id: string; name: string; org: string; type: string; status: string; trades: number; vol_24h: number; accuracy: number; is_genesis?: boolean; created_at: string }
 interface Tx { id: string; pair: string; from_currency: string; to_currency: string; amount: number; input_amount: number; fee: number; fee_kaus: number; status: string; created_at: string }
 interface CreditScore { score: number; tier: string; total_trades: number; win_rate: number }
+interface AIAnalysis {
+  summary: string
+  strengths: string[]
+  weaknesses: string[]
+  best_asset: string
+  worst_asset: string
+  recommendation: string
+  score_trend: 'improving' | 'stable' | 'declining'
+}
 
 const TIER_COLORS: Record<string, string> = {
   DIAMOND: '#67e8f9', PLATINUM: '#c4b5fd', GOLD: '#fde047', SILVER: '#94a3b8', BRONZE: '#f97316',
@@ -21,6 +30,9 @@ function fmt(n: number) {
   return `$${n.toFixed(0)}`
 }
 
+const TREND_COLORS = { improving: '#22c55e', stable: '#f59e0b', declining: '#ef4444' }
+const TREND_ICONS = { improving: '↑', stable: '→', declining: '↓' }
+
 export default function AgentPage({ params }: { params: { id: string } }) {
   const { id } = params
   const [agent, setAgent] = useState<Agent | null>(null)
@@ -28,6 +40,11 @@ export default function AgentPage({ params }: { params: { id: string } }) {
   const [credit, setCredit] = useState<CreditScore | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+
+  // AI Analysis state
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -61,6 +78,19 @@ export default function AgentPage({ params }: { params: { id: string } }) {
   }, [id])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  const runAnalysis = async () => {
+    setAiLoading(true)
+    setAiError(null)
+    const res = await fetch(`/api/agents/${encodeURIComponent(id)}/analyze`, { method: 'POST' })
+    const d = await res.json()
+    if (res.ok && d.analysis) {
+      setAiAnalysis(d.analysis)
+    } else {
+      setAiError(d.error ?? d.message ?? 'Analysis failed')
+    }
+    setAiLoading(false)
+  }
 
   const tier = credit?.tier ?? 'BRONZE'
   const tc = TIER_COLORS[tier] ?? '#f97316'
@@ -151,6 +181,104 @@ export default function AgentPage({ params }: { params: { id: string } }) {
               </div>
             </div>
           )}
+
+          {/* AI Insights */}
+          <div className="border border-gray-800 bg-gray-900/40 rounded p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="text-[9px] text-gray-500 font-mono uppercase tracking-widest">AI Insights</div>
+                <div className="text-[9px] text-gray-600 font-mono mt-0.5">Powered by Claude · analyzes last 50 trades</div>
+              </div>
+              <button
+                onClick={runAnalysis}
+                disabled={aiLoading}
+                className="py-1.5 px-4 text-[10px] font-mono rounded border transition-all"
+                style={{
+                  background: aiLoading ? 'transparent' : '#8b5cf622',
+                  borderColor: aiLoading ? '#374151' : '#8b5cf6',
+                  color: aiLoading ? '#6b7280' : '#8b5cf6',
+                  cursor: aiLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {aiLoading ? 'ANALYZING...' : '✦ RUN ANALYSIS'}
+              </button>
+            </div>
+
+            {aiError && (
+              <div className="text-[10px] text-red-400 font-mono">{aiError}</div>
+            )}
+
+            {!aiAnalysis && !aiLoading && !aiError && (
+              <div className="text-[10px] text-gray-600 font-mono py-4 text-center">
+                Click RUN ANALYSIS to get AI-powered insights for this agent
+              </div>
+            )}
+
+            {aiAnalysis && (
+              <div className="space-y-4">
+                {/* Summary + trend */}
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-[11px] text-gray-300 font-mono leading-relaxed flex-1">{aiAnalysis.summary}</p>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-base" style={{ color: TREND_COLORS[aiAnalysis.score_trend] }}>
+                      {TREND_ICONS[aiAnalysis.score_trend]}
+                    </span>
+                    <span className="text-[9px] font-mono uppercase" style={{ color: TREND_COLORS[aiAnalysis.score_trend] }}>
+                      {aiAnalysis.score_trend}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Best/Worst asset */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="border border-green-800/40 bg-green-900/5 rounded p-3">
+                    <div className="text-[9px] text-gray-500 font-mono mb-1">STRONGEST ASSET</div>
+                    <div className="text-sm font-bold font-mono text-green-400">{aiAnalysis.best_asset}</div>
+                  </div>
+                  <div className="border border-red-800/40 bg-red-900/5 rounded p-3">
+                    <div className="text-[9px] text-gray-500 font-mono mb-1">WEAKEST ASSET</div>
+                    <div className="text-sm font-bold font-mono text-red-400">{aiAnalysis.worst_asset}</div>
+                  </div>
+                </div>
+
+                {/* Strengths */}
+                {aiAnalysis.strengths?.length > 0 && (
+                  <div>
+                    <div className="text-[9px] text-green-400 font-mono uppercase tracking-widest mb-2">Strengths</div>
+                    <ul className="space-y-1">
+                      {aiAnalysis.strengths.map((s, i) => (
+                        <li key={i} className="text-[10px] text-gray-300 font-mono flex gap-2">
+                          <span className="text-green-500">+</span>{s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Weaknesses */}
+                {aiAnalysis.weaknesses?.length > 0 && (
+                  <div>
+                    <div className="text-[9px] text-red-400 font-mono uppercase tracking-widest mb-2">Weaknesses</div>
+                    <ul className="space-y-1">
+                      {aiAnalysis.weaknesses.map((w, i) => (
+                        <li key={i} className="text-[10px] text-gray-300 font-mono flex gap-2">
+                          <span className="text-red-500">-</span>{w}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Recommendation */}
+                {aiAnalysis.recommendation && (
+                  <div className="border border-amber-800/40 bg-amber-900/5 rounded p-3">
+                    <div className="text-[9px] text-amber-400 font-mono uppercase tracking-widest mb-1">Recommendation</div>
+                    <div className="text-[10px] text-amber-200 font-mono">{aiAnalysis.recommendation}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Transaction history */}
           <div className="border border-gray-800 bg-gray-900/40 rounded p-4">

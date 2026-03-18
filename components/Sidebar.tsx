@@ -19,6 +19,7 @@ const NAV = [
   ]},
   { group: '// data + ai', items: [
     { href: '/dashboard',   label: 'dashboard()',         badge: 'NEW' },
+    { href: '/backtest',    label: 'backtest.run()',       badge: 'NEW' },
     { href: '/data',        label: 'intelligence.run()',  badge: '' },
     { href: '/connect',     label: 'mcp.connect()',       badge: 'SDK' },
     { href: '/docs',        label: 'mcp.docs()',          badge: '' },

@@ -17,6 +17,9 @@ interface StreamData {
   viewers: number; timestamp: string
   error?: string
 }
+interface Bet {
+  id: string; bettor_agent_id: string; amount: number; side: string; status: string; created_at: string
+}
 
 const TIER_COLORS: Record<string, string> = {
   DIAMOND: '#67e8f9', PLATINUM: '#c4b5fd', GOLD: '#fde047', SILVER: '#94a3b8', BRONZE: '#f97316',
@@ -48,6 +51,14 @@ export default function BattleWatchPage() {
   const prevScoreA = useRef<number>(0)
   const prevScoreB = useRef<number>(0)
 
+  // Betting state
+  const [bets, setBets] = useState<Bet[]>([])
+  const [betSide, setBetSide] = useState<'a' | 'b'>('a')
+  const [betAmount, setBetAmount] = useState('')
+  const [bettorId, setBettorId] = useState('')
+  const [betLoading, setBetLoading] = useState(false)
+  const [betMsg, setBetMsg] = useState<{ text: string; ok: boolean } | null>(null)
+
   useEffect(() => {
     if (!battleId) return
     const es = new EventSource(`/api/battle/${battleId}/stream`)
@@ -73,9 +84,53 @@ export default function BattleWatchPage() {
     return () => es.close()
   }, [battleId])
 
+  // Load bets
+  useEffect(() => {
+    if (!battleId) return
+    const load = async () => {
+      const res = await fetch(`/api/battle/${battleId}/bet`).catch(() => null)
+      if (res?.ok) {
+        const d = await res.json()
+        setBets(d.bets ?? [])
+      }
+    }
+    load()
+    const t = setInterval(load, 10_000)
+    return () => clearInterval(t)
+  }, [battleId])
+
+  const placeBet = async () => {
+    if (!bettorId.trim() || !betAmount || Number(betAmount) <= 0) {
+      setBetMsg({ text: 'Enter your agent ID and bet amount', ok: false }); return
+    }
+    setBetLoading(true)
+    setBetMsg(null)
+
+    const res = await fetch(`/api/battle/${battleId}/bet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bettor_agent_id: bettorId.trim(), amount: Number(betAmount), side: betSide }),
+    })
+    const d = await res.json()
+    if (res.ok) {
+      setBetMsg({ text: `✓ Bet placed: ${betAmount} KAUS on side ${betSide.toUpperCase()}. New balance: ${d.new_balance} KAUS`, ok: true })
+      setBetAmount('')
+      // Reload bets
+      const br = await fetch(`/api/battle/${battleId}/bet`).catch(() => null)
+      if (br?.ok) { const bd = await br.json(); setBets(bd.bets ?? []) }
+    } else {
+      setBetMsg({ text: d.error ?? 'Bet failed', ok: false })
+    }
+    setBetLoading(false)
+  }
+
   const isComplete = data?.battle?.status === 'completed'
   const winnerId = data?.battle?.winner_id
   const winnerName = winnerId === data?.agent_a?.id ? data?.agent_a?.name : data?.agent_b?.name
+
+  const totalBetA = bets.filter(b => b.side === 'a').reduce((s, b) => s + Number(b.amount), 0)
+  const totalBetB = bets.filter(b => b.side === 'b').reduce((s, b) => s + Number(b.amount), 0)
+  const totalBets = totalBetA + totalBetB
 
   return (
     <div className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden">
@@ -166,6 +221,12 @@ export default function BattleWatchPage() {
                     </div>
                     <div className="text-[9px] text-gray-500 font-mono">WIN PROBABILITY</div>
                   </div>
+                  {/* Bet stats */}
+                  {totalBets > 0 && (
+                    <div className="mt-3 text-center text-[9px] font-mono text-green-400">
+                      Bets: {totalBetA.toFixed(1)} KAUS
+                    </div>
+                  )}
                 </div>
 
                 {/* Center */}
@@ -180,6 +241,11 @@ export default function BattleWatchPage() {
                   <div className="text-[9px] text-green-400 font-mono">
                     Prize: {parseFloat((Number(data.battle.amount) * 2 * 0.9).toFixed(2))} KAUS
                   </div>
+                  {totalBets > 0 && (
+                    <div className="text-[9px] text-amber-400 font-mono">
+                      Bet Pool: {totalBets.toFixed(1)}K
+                    </div>
+                  )}
                 </div>
 
                 {/* Agent B */}
@@ -213,6 +279,11 @@ export default function BattleWatchPage() {
                     </div>
                     <div className="text-[9px] text-gray-500 font-mono">WIN PROBABILITY</div>
                   </div>
+                  {totalBets > 0 && (
+                    <div className="mt-3 text-center text-[9px] font-mono text-blue-400">
+                      Bets: {totalBetB.toFixed(1)} KAUS
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -235,6 +306,125 @@ export default function BattleWatchPage() {
                 </div>
               </div>
 
+              {/* Betting Pool bar */}
+              {totalBets > 0 && (
+                <div className="border border-gray-800 rounded p-4 bg-gray-900/40">
+                  <div className="text-[9px] text-gray-500 font-mono mb-3 tracking-widest">BET POOL DISTRIBUTION</div>
+                  <div className="flex rounded overflow-hidden h-5">
+                    <div className="flex items-center justify-center text-[9px] font-mono font-bold text-black transition-all duration-500"
+                      style={{ width: `${totalBets > 0 ? (totalBetA / totalBets) * 100 : 50}%`, background: '#22c55e' }}>
+                      {totalBetA > 0 ? `${((totalBetA / totalBets) * 100).toFixed(0)}%` : ''}
+                    </div>
+                    <div className="flex items-center justify-center text-[9px] font-mono font-bold text-black transition-all duration-500"
+                      style={{ width: `${totalBets > 0 ? (totalBetB / totalBets) * 100 : 50}%`, background: '#60a5fa' }}>
+                      {totalBetB > 0 ? `${((totalBetB / totalBets) * 100).toFixed(0)}%` : ''}
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-[9px] font-mono mt-2">
+                    <span className="text-green-400">{totalBetA.toFixed(1)} KAUS ({bets.filter(b => b.side === 'a').length} bets)</span>
+                    <span className="text-gray-500">Total: {totalBets.toFixed(1)} KAUS</span>
+                    <span className="text-blue-400">{totalBetB.toFixed(1)} KAUS ({bets.filter(b => b.side === 'b').length} bets)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Bet placement UI */}
+              {!isComplete && (
+                <div className="border border-amber-800/40 bg-amber-900/5 rounded p-4">
+                  <div className="text-[9px] text-amber-400 font-mono tracking-widest mb-3">PLACE A BET</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    {/* Agent ID */}
+                    <div className="md:col-span-2">
+                      <label className="text-[9px] text-gray-500 font-mono block mb-1">YOUR AGENT ID</label>
+                      <input
+                        type="text"
+                        value={bettorId}
+                        onChange={e => setBettorId(e.target.value)}
+                        placeholder="agent-id..."
+                        className="w-full bg-gray-900 border border-gray-700 text-white text-xs font-mono rounded px-2 py-1.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    {/* Amount */}
+                    <div>
+                      <label className="text-[9px] text-gray-500 font-mono block mb-1">AMOUNT (KAUS)</label>
+                      <input
+                        type="number"
+                        value={betAmount}
+                        onChange={e => setBetAmount(e.target.value)}
+                        placeholder="10"
+                        min="1"
+                        className="w-full bg-gray-900 border border-gray-700 text-white text-xs font-mono rounded px-2 py-1.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    {/* Side */}
+                    <div>
+                      <label className="text-[9px] text-gray-500 font-mono block mb-1">BET ON</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setBetSide('a')}
+                          className="flex-1 py-1.5 text-[10px] font-mono rounded border transition-all"
+                          style={{
+                            background: betSide === 'a' ? '#22c55e22' : 'transparent',
+                            borderColor: betSide === 'a' ? '#22c55e' : '#374151',
+                            color: betSide === 'a' ? '#22c55e' : '#6b7280',
+                          }}
+                        >A</button>
+                        <button
+                          onClick={() => setBetSide('b')}
+                          className="flex-1 py-1.5 text-[10px] font-mono rounded border transition-all"
+                          style={{
+                            background: betSide === 'b' ? '#60a5fa22' : 'transparent',
+                            borderColor: betSide === 'b' ? '#60a5fa' : '#374151',
+                            color: betSide === 'b' ? '#60a5fa' : '#6b7280',
+                          }}
+                        >B</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={placeBet}
+                    disabled={betLoading}
+                    className="py-2 px-6 text-xs font-mono font-bold rounded border transition-all"
+                    style={{
+                      background: betLoading ? 'transparent' : '#f59e0b22',
+                      borderColor: betLoading ? '#374151' : '#f59e0b',
+                      color: betLoading ? '#6b7280' : '#f59e0b',
+                      cursor: betLoading ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {betLoading ? 'PLACING...' : '⚡ PLACE BET'}
+                  </button>
+
+                  {betMsg && (
+                    <div className={`mt-3 text-[10px] font-mono ${betMsg.ok ? 'text-green-400' : 'text-red-400'}`}>
+                      {betMsg.text}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Recent bets */}
+              {bets.length > 0 && (
+                <div className="border border-gray-800 rounded p-4 bg-gray-900/40">
+                  <div className="text-[9px] text-gray-500 font-mono tracking-widest mb-3">RECENT BETS</div>
+                  <div className="space-y-2">
+                    {bets.slice(0, 8).map((b, i) => (
+                      <div key={b.id ?? i} className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-gray-400">{b.bettor_agent_id?.slice(0, 12)}...</span>
+                        <span style={{ color: b.side === 'a' ? '#22c55e' : '#60a5fa' }}>
+                          Side {b.side.toUpperCase()}
+                        </span>
+                        <span className="text-amber-400">{Number(b.amount).toFixed(1)} KAUS</span>
+                        <span className="text-[9px] text-gray-600">
+                          {b.created_at ? new Date(b.created_at).toLocaleTimeString() : '--'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Stats grid */}
               <div className="grid grid-cols-3 gap-3">
                 {[
@@ -249,7 +439,6 @@ export default function BattleWatchPage() {
                 ))}
               </div>
 
-              {/* View battle list link */}
               <div className="text-center">
                 <a href="/battle" className="text-[10px] font-mono text-gray-600 hover:text-green-400 transition">
                   ← View all battles
