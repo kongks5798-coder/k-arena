@@ -1,73 +1,102 @@
 import { NextResponse } from 'next/server'
 
-// 현실적인 가격 변동성 모델
-const ASSETS = [
-  { symbol: 'XAU', name: 'Gold', base: 2352, vol: 0.008, unit: 'oz' },
-  { symbol: 'BTC', name: 'Bitcoin', base: 87420, vol: 0.025, unit: 'BTC' },
-  { symbol: 'ETH', name: 'Ethereum', base: 3318, vol: 0.030, unit: 'ETH' },
-  { symbol: 'EUR', name: 'Euro', base: 1.084, vol: 0.003, unit: 'EUR' },
-  { symbol: 'WTI', name: 'Crude Oil', base: 81.3, vol: 0.015, unit: 'bbl' },
-  { symbol: 'USD', name: 'US Dollar', base: 1.000, vol: 0.001, unit: 'USD' },
-]
-
-const KAUS_BASE = 1.01
-
-// 시간 기반 시드로 일관된 가격 생성 (같은 분 내 동일 가격)
-function seededRand(seed: number, min: number, max: number) {
-  const x = Math.sin(seed) * 10000
-  const r = x - Math.floor(x)
-  return min + r * (max - min)
+// 폴백 가격 (외부 API 실패 시 — 실제 시장가 기준 고정값, 랜덤 없음)
+const FALLBACK: Record<string, number> = {
+  BTC: 87420,
+  ETH: 3318,
+  XAU: 2352, // per oz
+  EUR: 1.084,
+  WTI: 81.3,  // WTI Crude Oil — 무료 실시간 API 없어 고정
+  USD: 1.000,
 }
+
+const KAUS_PRICE = 1.0000 // KAUS 페그 (아직 실거래소 미상장)
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const now = Date.now()
-  const minuteSeed = Math.floor(now / 60000) // 분 단위 시드
+  const prices: Record<string, number> = { ...FALLBACK }
+  const sources: string[] = []
 
-  const kausPrice = KAUS_BASE * (1 + seededRand(minuteSeed * 7, -0.02, 0.03))
+  // BTC + ETH 실시간 (CoinGecko 무료)
+  try {
+    const cg = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd',
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (cg.ok) {
+      const d = await cg.json()
+      if (d.bitcoin?.usd)  { prices.BTC = d.bitcoin.usd;  sources.push('coingecko') }
+      if (d.ethereum?.usd) { prices.ETH = d.ethereum.usd; sources.push('coingecko-eth') }
+    }
+  } catch { /* 폴백 유지 */ }
 
-  const rates = ASSETS.map((asset, i) => {
-    const seed = minuteSeed * (i + 3)
-    const price = asset.base * (1 + seededRand(seed, -asset.vol, asset.vol))
-    const change24h = seededRand(seed * 13, -asset.vol * 100, asset.vol * 100)
-    const kausRate = price / kausPrice
+  // EUR 환율 실시간 (ExchangeRate-API 무료)
+  try {
+    const er = await fetch(
+      'https://open.er-api.com/v6/latest/USD',
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (er.ok) {
+      const d = await er.json()
+      if (d.rates?.EUR) { prices.EUR = parseFloat((1 / d.rates.EUR).toFixed(4)); sources.push('exchangerate') }
+    }
+  } catch { /* 폴백 유지 */ }
 
+  // XAU 금 실시간 (metals.live 무료)
+  try {
+    const xau = await fetch(
+      'https://api.metals.live/v1/spot/gold',
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (xau.ok) {
+      const d = await xau.json()
+      const goldPrice = Array.isArray(d) ? d[0]?.price : d?.price
+      if (goldPrice) { prices.XAU = goldPrice; sources.push('metals-live') }
+    }
+  } catch { /* 폴백 유지 */ }
+
+  const assets = [
+    { symbol: 'BTC', name: 'Bitcoin',   unit: 'BTC' },
+    { symbol: 'ETH', name: 'Ethereum',  unit: 'ETH' },
+    { symbol: 'XAU', name: 'Gold',      unit: 'oz'  },
+    { symbol: 'EUR', name: 'Euro',      unit: 'EUR' },
+    { symbol: 'WTI', name: 'Crude Oil', unit: 'bbl' },
+    { symbol: 'USD', name: 'US Dollar', unit: 'USD' },
+  ]
+
+  const rates = assets.map(a => {
+    const priceUsd = prices[a.symbol] ?? FALLBACK[a.symbol]
     return {
-      pair: `${asset.symbol}/KAUS`,
-      symbol: asset.symbol,
-      name: asset.name,
-      price_usd: parseFloat(price.toFixed(price > 100 ? 2 : 4)),
-      price_kaus: parseFloat(kausRate.toFixed(price > 100 ? 2 : 4)),
-      change_24h: parseFloat(change24h.toFixed(3)),
-      change_7d: parseFloat(seededRand(seed * 5, -asset.vol * 300, asset.vol * 300).toFixed(2)),
-      high_24h: parseFloat((price * (1 + asset.vol * 0.8)).toFixed(price > 100 ? 2 : 4)),
-      low_24h: parseFloat((price * (1 - asset.vol * 0.8)).toFixed(price > 100 ? 2 : 4)),
-      volume_24h: Math.floor(seededRand(seed * 11, 500, 15000)),
-      unit: asset.unit,
+      pair: `${a.symbol}/KAUS`,
+      symbol: a.symbol,
+      name: a.name,
+      price_usd: priceUsd,
+      price_kaus: parseFloat((priceUsd / KAUS_PRICE).toFixed(priceUsd > 100 ? 2 : 4)),
+      change_24h: 0,   // 실데이터 없으면 0 표시 (가짜 생성 안 함)
+      unit: a.unit,
+      is_live: sources.some(s => s.toLowerCase().includes(a.symbol.toLowerCase())),
     }
   })
 
-  // KAUS/USD 추가
+  // KAUS/USD
   rates.push({
     pair: 'KAUS/USD',
     symbol: 'KAUS',
     name: 'KAUS Token',
-    price_usd: parseFloat(kausPrice.toFixed(4)),
+    price_usd: KAUS_PRICE,
     price_kaus: 1.0,
-    change_24h: parseFloat(seededRand(minuteSeed * 17, -2, 3).toFixed(3)),
-    change_7d: parseFloat(seededRand(minuteSeed * 19, -5, 8).toFixed(2)),
-    high_24h: parseFloat((kausPrice * 1.015).toFixed(4)),
-    low_24h: parseFloat((kausPrice * 0.985).toFixed(4)),
-    volume_24h: Math.floor(seededRand(minuteSeed * 23, 50000, 200000)),
+    change_24h: 0,
     unit: 'KAUS',
+    is_live: false, // 거래소 미상장
   })
 
   return NextResponse.json({
     rates,
-    kaus_price: parseFloat(kausPrice.toFixed(4)),
+    kaus_price: KAUS_PRICE,
+    data_sources: sources.length > 0 ? sources : ['fallback'],
+    wti_note: 'WTI price is a reference value (no free real-time API)',
     timestamp: new Date().toISOString(),
-    next_update: new Date(Math.ceil(now / 60000) * 60000).toISOString(),
   }, {
     headers: {
       'Access-Control-Allow-Origin': '*',

@@ -1,24 +1,23 @@
 import { NextResponse, NextRequest } from 'next/server'
 
-const PRICES: Record<string, { base: number; vol: number }> = {
-  'XAU/KAUS': { base: 2352.40, vol: 0.008 },
-  'USD/KAUS': { base: 1.0102, vol: 0.003 },
-  'ETH/KAUS': { base: 3318.50, vol: 0.025 },
-  'BTC/KAUS': { base: 87420, vol: 0.018 },
-  'OIL/KAUS': { base: 81.34, vol: 0.012 },
-  'EUR/KAUS': { base: 1.0841, vol: 0.004 },
+// 기준 가격 (랜덤 없음 — /api/rates에서 실시간 업데이트)
+const PRICES: Record<string, { base: number; spread: number }> = {
+  'XAU/KAUS': { base: 2352.40, spread: 0.50 },
+  'USD/KAUS': { base: 1.0000, spread: 0.0005 },
+  'ETH/KAUS': { base: 3318.50, spread: 1.20 },
+  'BTC/KAUS': { base: 87420,   spread: 25.00 },
+  'OIL/KAUS': { base: 81.34,   spread: 0.05 },
+  'EUR/KAUS': { base: 1.0841,  spread: 0.0004 },
 }
 
 function getPrice(pair: string) {
   const p = PRICES[pair]
   if (!p) return null
-  const spread = p.base * p.vol
-  const mid = p.base * (1 + (Math.random() - 0.5) * 0.002)
   return {
-    mid: parseFloat(mid.toFixed(mid > 100 ? 2 : 4)),
-    bid: parseFloat((mid - spread * 0.3).toFixed(mid > 100 ? 2 : 4)),
-    ask: parseFloat((mid + spread * 0.3).toFixed(mid > 100 ? 2 : 4)),
-    change: parseFloat(((Math.random() - 0.5) * 5).toFixed(3)),
+    mid: p.base,
+    bid: parseFloat((p.base - p.spread).toFixed(p.base > 100 ? 2 : 4)),
+    ask: parseFloat((p.base + p.spread).toFixed(p.base > 100 ? 2 : 4)),
+    change: 0, // 실거래 기반 없으면 0
   }
 }
 
@@ -33,7 +32,7 @@ export async function GET() {
       bid: price.bid,
       ask: price.ask,
       change: price.change,
-      vol_24h: Math.floor(Math.random() * 12000 + 500),
+      vol_24h: 0, // 실Supabase 집계 없으면 0
       spread: parseFloat((price.ask - price.bid).toFixed(6)),
     }
   })
@@ -67,8 +66,8 @@ export async function POST(req: NextRequest) {
     const execPrice = direction === 'BUY' ? priceData.ask : priceData.bid
     const fee = parseFloat((amount * 0.001).toFixed(4))
     const kausAmount = parseFloat((amount / execPrice).toFixed(6))
-    const txId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
-    const slippage = parseFloat(((Math.random() * 0.002)).toFixed(6))
+    const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`
+    const slippage = 0.000000 // 고정 슬리피지 (실거래 기반 없음)
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
@@ -108,10 +107,8 @@ export async function POST(req: NextRequest) {
           const current = agentData[0]
           const newVol = (current.vol_24h || 0) + parseFloat(amount)
           const newTrades = (current.trades || 0) + 1
-          // 정확도: 랜덤 소폭 변동 (실제 승패 기반으로 추후 개선)
-          const newAccuracy = parseFloat(Math.min(95, Math.max(50,
-            (current.accuracy || 70) + (Math.random() - 0.48) * 0.5
-          )).toFixed(1))
+          // 정확도: 거래 누적 기반 (실거래 P&L 없으므로 현재값 유지)
+          const newAccuracy = parseFloat((current.accuracy || 70).toFixed(1))
 
           await fetch(`${supabaseUrl}/rest/v1/agents?id=eq.${agent_id}`, {
             method: 'PATCH',

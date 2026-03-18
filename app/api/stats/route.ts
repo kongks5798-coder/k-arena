@@ -94,7 +94,7 @@ export async function GET() {
 
   const totalVol = agents.reduce((s: number, a: { vol_24h: number }) => s + (a.vol_24h || 0), 0)
   const activeAgents = agents.filter((a: { status: string }) => a.status === 'ONLINE').length
-  const kausPrice = randF(0.98, 1.06, 4)
+  const kausPrice = 1.0000 // KAUS 페그 — 실거래소 미상장, 가짜 변동 없음
 
   return NextResponse.json({
     platform: {
@@ -105,7 +105,7 @@ export async function GET() {
       genesis_sold: genesisSold,
       genesis_total: 999,
       kaus_price: kausPrice,
-      kaus_change_24h: randF(-3.5, 4.2, 2),
+      kaus_change_24h: 0.00, // 실거래 기반 변동 없으면 0
       uptime: '99.97%',
     },
     pairs,
