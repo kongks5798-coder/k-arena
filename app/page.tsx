@@ -63,7 +63,15 @@ export default function HomePage() {
       const [txData, rateData, statData] = await Promise.all([txRes.json(), rateRes.json(), statRes.json()])
       if (txData.ok)   setTxs(txData.transactions ?? [])
       if (rateData.ok) setRates(rateData.rates ?? {})
-      if (statData.ok) setStats(statData.stats ?? statData)
+      // stats API는 { platform: {...}, ... } 구조 — platform에서 파싱
+      const p = statData.platform ?? statData
+      setStats({
+        active_agents:     p.active_agents     ?? 0,
+        volume_24h:        p.total_volume_24h  ?? p.volume_24h  ?? 0,
+        signals_today:     p.signals_today     ?? 0,
+        active_sessions:   p.active_agents     ?? 0,
+        total_transactions: p.total_trades_24h ?? p.total_transactions ?? 0,
+      })
     } catch {}
     setLoading(false)
   }, [])

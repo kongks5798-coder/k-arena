@@ -1,116 +1,110 @@
 import { NextResponse } from 'next/server'
 
-function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min }
-function randF(min: number, max: number, dec = 4) { return parseFloat((Math.random() * (max - min) + min).toFixed(dec)) }
-
-const PAIRS = [
-  { pair: 'XAU/KAUS', basePrice: 2352, volatility: 0.008 },
-  { pair: 'USD/KAUS', basePrice: 1.01, volatility: 0.003 },
-  { pair: 'ETH/KAUS', basePrice: 3318, volatility: 0.025 },
-  { pair: 'BTC/KAUS', basePrice: 87420, volatility: 0.018 },
-  { pair: 'OIL/KAUS', basePrice: 81.3, volatility: 0.012 },
-  { pair: 'EUR/KAUS', basePrice: 1.084, volatility: 0.004 },
-]
-
-const MOCK_AGENTS = [
-  { id: 'AGT-0042', name: 'Apex Exchange Bot', org: 'Apex Capital', status: 'ONLINE', vol_24h: rand(120000, 200000), trades: rand(600, 1200), accuracy: randF(72, 82, 1) },
-  { id: 'AGT-0117', name: 'Seoul FX Engine', org: 'Korea Finance', status: 'ONLINE', vol_24h: rand(80000, 150000), trades: rand(300, 700), accuracy: randF(65, 78, 1) },
-  { id: 'AGT-0223', name: 'Gold Arbitrage AI', org: 'GoldTech Ltd', status: 'ONLINE', vol_24h: rand(50000, 110000), trades: rand(200, 450), accuracy: randF(78, 90, 1) },
-  { id: 'AGT-0089', name: 'Euro Trade Node', org: 'EU Markets', status: 'ONLINE', vol_24h: rand(30000, 80000), trades: rand(150, 350), accuracy: randF(62, 76, 1) },
-  { id: 'AGT-0156', name: 'Crypto Bridge Agent', org: 'DeFi Protocol', status: 'ONLINE', vol_24h: rand(100000, 180000), trades: rand(500, 900), accuracy: randF(74, 86, 1) },
-  { id: 'AGT-0301', name: 'Energy Markets Bot', org: 'EnergyCorp', status: 'ONLINE', vol_24h: rand(25000, 65000), trades: rand(100, 250), accuracy: randF(58, 72, 1) },
-]
-
 export const dynamic = 'force-dynamic'
+
+const KAUS_PRICE = 1.0000
 
 export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
 
-  let agents = MOCK_AGENTS
-  let txCount = rand(800, 1400)
-  let genesisSold = 12
-  let dataSource = 'simulation'
+  // 기본값 (Supabase 없을 때) — 랜덤 없음
+  let activeAgents = 0
+  let totalAgents = 0
+  let totalVol = 0
+  let txCount = 0
+  let genesisSold = 0
+  let agents: unknown[] = []
+  let dataSource = 'no-db'
 
-  // Supabase 실데이터 시도
   if (supabaseUrl && supabaseKey) {
-    const headers = {
+    const h = {
       apikey: supabaseKey,
       Authorization: `Bearer ${supabaseKey}`,
     }
 
     try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 4000)
-
       const [agR, txR, gnR] = await Promise.all([
-        fetch(`${supabaseUrl}/rest/v1/agents?select=id,name,type,wallet_address,org,vol_24h,trades,accuracy,status,is_active,daily_limit&order=vol_24h.desc`, { headers, signal: controller.signal }),
-        fetch(`${supabaseUrl}/rest/v1/transactions?select=id&order=created_at.desc&limit=1000`, { headers, signal: controller.signal }),
-        fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, { headers, signal: controller.signal }),
+        // agents: 전체 목록 + vol_24h, status, is_active
+        fetch(`${supabaseUrl}/rest/v1/agents?select=id,name,type,org,vol_24h,trades,accuracy,status,is_active,daily_limit,wallet_address&order=vol_24h.desc&limit=100`, {
+          headers: h, signal: AbortSignal.timeout(5000),
+        }),
+        // transactions: 전체 카운트 (24H 필터 없음 — 실거래 없는 초기 단계)
+        fetch(`${supabaseUrl}/rest/v1/transactions?select=id,amount,created_at&limit=9999`, {
+          headers: h, signal: AbortSignal.timeout(5000),
+        }),
+        // genesis members
+        fetch(`${supabaseUrl}/rest/v1/genesis_members?select=id`, {
+          headers: h, signal: AbortSignal.timeout(5000),
+        }),
       ])
-
-      clearTimeout(timeout)
 
       if (agR.ok) {
         const agData = await agR.json()
         if (Array.isArray(agData) && agData.length > 0) {
           agents = agData
+          totalAgents = agData.length
+          // status='ONLINE' 또는 is_active=true 인 에이전트
+          activeAgents = agData.filter(
+            (a: { status?: string; is_active?: boolean }) =>
+              a.status === 'ONLINE' || a.is_active === true
+          ).length
+          // vol_24h 합계
+          totalVol = agData.reduce(
+            (s: number, a: { vol_24h?: number }) => s + (a.vol_24h || 0), 0
+          )
           dataSource = 'supabase'
         }
       }
+
       if (txR.ok) {
         const txData = await txR.json()
-        if (Array.isArray(txData)) txCount = txData.length
+        if (Array.isArray(txData)) {
+          txCount = txData.length
+          // 24H 볼륨이 없을 때 → transactions amount 합계로 보완
+          if (totalVol === 0) {
+            totalVol = txData.reduce(
+              (s: number, t: { amount?: number }) => s + (t.amount || 0), 0
+            )
+          }
+        }
       }
+
       if (gnR.ok) {
         const gnData = await gnR.json()
         if (Array.isArray(gnData)) genesisSold = gnData.length
       }
     } catch {
-      // Supabase 실패 → mock 유지
+      dataSource = 'error'
     }
   }
 
-  // 실시간 페어 가격 생성
-  const now = Date.now()
-  const pairs = PAIRS.map(p => ({
-    pair: p.pair,
-    price: parseFloat((p.basePrice * (1 + (Math.random() - 0.5) * p.volatility)).toFixed(p.basePrice > 100 ? 2 : 4)),
-    change: randF(-2.5, 2.5, 3),
-    vol: rand(500, 12000),
-  }))
-
-  // 시그널 생성 (페어 기반)
-  const AGENT_NAMES = agents.map((a: { name: string }) => a.name)
-  const signals = Array.from({ length: 12 }, (_, i) => ({
-    id: `SIG-${String(1000 + i).padStart(4, '0')}`,
-    pair: pairs[i % 6].pair,
-    direction: Math.random() > 0.45 ? 'LONG' : 'SHORT',
-    confidence: rand(55, 97),
-    timestamp: new Date(now - rand(60000, 3600000)).toISOString(),
-    source: AGENT_NAMES[i % AGENT_NAMES.length] || 'K-Arena AI',
-    strength: ['WEAK', 'MODERATE', 'STRONG', 'VERY_STRONG'][rand(0, 3)],
-  }))
-
-  const totalVol = agents.reduce((s: number, a: { vol_24h: number }) => s + (a.vol_24h || 0), 0)
-  const activeAgents = agents.filter((a: { status: string }) => a.status === 'ONLINE').length
-  const kausPrice = 1.0000 // KAUS 페그 — 실거래소 미상장, 가짜 변동 없음
+  // 고정 페어 가격 (랜덤 없음 — 실시간은 /api/rates 참조)
+  const FIXED_PAIRS = [
+    { pair: 'XAU/KAUS', price: 2352.00, change: 0 },
+    { pair: 'USD/KAUS', price: 1.0000,  change: 0 },
+    { pair: 'ETH/KAUS', price: 3318.00, change: 0 },
+    { pair: 'BTC/KAUS', price: 87420,   change: 0 },
+    { pair: 'OIL/KAUS', price: 81.30,   change: 0 },
+    { pair: 'EUR/KAUS', price: 1.0840,  change: 0 },
+  ]
 
   return NextResponse.json({
+    ok: true, // page.tsx에서 ok 체크용
     platform: {
-      total_volume_24h: totalVol,
+      total_volume_24h: parseFloat(totalVol.toFixed(2)),
       active_agents: activeAgents,
-      total_agents: agents.length,
+      total_agents: totalAgents,
       total_trades_24h: txCount,
       genesis_sold: genesisSold,
       genesis_total: 999,
-      kaus_price: kausPrice,
-      kaus_change_24h: 0.00, // 실거래 기반 변동 없으면 0
+      kaus_price: KAUS_PRICE,
+      kaus_change_24h: 0.00,
       uptime: '99.97%',
     },
-    pairs,
+    pairs: FIXED_PAIRS,
     agents,
-    signals,
+    signals: [], // 실시그널 없으면 빈 배열
     data_source: dataSource,
     timestamp: new Date().toISOString(),
   }, {
