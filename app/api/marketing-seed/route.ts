@@ -47,83 +47,46 @@ const SEED_LOGS = [
   },
 ]
 
-async function ensureTable(supabaseUrl: string, serviceKey: string): Promise<{ ok: boolean; method: string; error?: string }> {
-  // Try Supabase pg-meta SQL API (requires service role key)
-  const pgMetaUrl = supabaseUrl.replace('/rest/v1', '') + '/pg-meta/v0/query'
-  const createSQL = `
-    CREATE TABLE IF NOT EXISTS marketing_logs (
-      id BIGSERIAL PRIMARY KEY,
-      platform TEXT NOT NULL,
-      action TEXT NOT NULL,
-      result TEXT NOT NULL DEFAULT '',
-      url TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    ALTER TABLE marketing_logs DISABLE ROW LEVEL SECURITY;
-  `
-  try {
-    const res = await fetch(pgMetaUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query: createSQL }),
-      signal: AbortSignal.timeout(8000),
-    })
-    if (res.ok) return { ok: true, method: 'pg-meta' }
-    const err = await res.text()
-    return { ok: false, method: 'pg-meta', error: err }
-  } catch (e) {
-    return { ok: false, method: 'pg-meta', error: String(e) }
-  }
-}
-
 export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseKey
+    ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ?? process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ ok: false, error: 'No DB config' }, { status: 503 })
+    return NextResponse.json({ ok: false, error: 'Missing NEXT_PUBLIC_SUPABASE_URL or key env vars' }, { status: 503 })
   }
+
+  const restBase = supabaseUrl.endsWith('/rest/v1')
+    ? supabaseUrl
+    : `${supabaseUrl}/rest/v1`
 
   const h = {
     apikey: supabaseKey,
     Authorization: `Bearer ${supabaseKey}`,
     'Content-Type': 'application/json',
-    Prefer: 'return=representation',
+    Prefer: 'return=minimal',
   }
 
-  // Check if table exists — if not, try to create it
-  let tableReady = false
+  // Check for existing rows to avoid re-seeding
   try {
-    const checkRes = await fetch(
-      `${supabaseUrl}/rest/v1/marketing_logs?select=id&limit=1`,
-      { headers: h, signal: AbortSignal.timeout(5000) }
-    )
+    const checkRes = await fetch(`${restBase}/marketing_logs?select=id&limit=1`, {
+      headers: h,
+      signal: AbortSignal.timeout(6000),
+    })
     if (checkRes.ok) {
-      tableReady = true
-      const existing = await checkRes.json()
-      if (existing.length > 0) {
-        return NextResponse.json({
-          ok: true,
-          message: 'Already seeded — marketing_logs has existing data',
-          existing_count: existing.length,
-        })
+      const rows = await checkRes.json()
+      if (Array.isArray(rows) && rows.length > 0) {
+        return NextResponse.json({ ok: true, message: 'Already seeded', existing: rows.length })
       }
     } else {
-      // Table likely doesn't exist — try to create it
-      if (serviceKey) {
-        const createResult = await ensureTable(supabaseUrl, serviceKey)
-        if (createResult.ok) {
-          tableReady = true
-        } else {
-          return NextResponse.json({
-            ok: false,
-            error: 'Table does not exist and auto-create failed',
-            create_error: createResult.error,
-            manual_sql: `CREATE TABLE IF NOT EXISTS marketing_logs (
+      const errText = await checkRes.text()
+      // Table doesn't exist — return instructions
+      return NextResponse.json({
+        ok: false,
+        error: `Table check failed (${checkRes.status}): ${errText}`,
+        fix: 'Run the SQL below in Supabase SQL Editor',
+        sql: `CREATE TABLE IF NOT EXISTS marketing_logs (
   id BIGSERIAL PRIMARY KEY,
   platform TEXT NOT NULL,
   action TEXT NOT NULL,
@@ -132,33 +95,29 @@ export async function GET() {
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE marketing_logs DISABLE ROW LEVEL SECURITY;`,
-            dashboard: 'https://supabase.com/dashboard/project/gflbuujjotqpflrbgtpd/sql/new',
-          }, { status: 500 })
-        }
-      }
+        dashboard: 'https://supabase.com/dashboard/project/gflbuujjotqpflrbgtpd/sql/new',
+      }, { status: 500 })
     }
-  } catch {}
-
-  if (!tableReady) {
-    return NextResponse.json({ ok: false, error: 'Could not verify table state' }, { status: 500 })
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: `Check error: ${String(e)}` }, { status: 500 })
   }
 
   // Insert seed rows
-  const results: { platform: string; ok: boolean; error?: string }[] = []
+  const results: { platform: string; ok: boolean; status?: number; error?: string }[] = []
 
   for (const row of SEED_LOGS) {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/marketing_logs`, {
+      const res = await fetch(`${restBase}/marketing_logs`, {
         method: 'POST',
         headers: h,
         body: JSON.stringify(row),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       })
-      if (res.ok) {
+      if (res.ok || res.status === 201) {
         results.push({ platform: row.platform, ok: true })
       } else {
         const err = await res.text()
-        results.push({ platform: row.platform, ok: false, error: err })
+        results.push({ platform: row.platform, ok: false, status: res.status, error: err })
       }
     } catch (e) {
       results.push({ platform: row.platform, ok: false, error: String(e) })
