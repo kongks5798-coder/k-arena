@@ -5,9 +5,15 @@ import { Sidebar } from '@/components/Sidebar'
 import { formatAmount } from '@/lib/rates'
 
 interface Tx {
-  id: string; agent_id: string; from_currency: string; to_currency: string
-  input_amount: number; output_amount: number; rate: number
-  fee_kaus: number; settlement_ms: number; status: string; created_at: string
+  id: string | number
+  agent_id: string
+  agent_name?: string
+  pair: string
+  amount: number
+  direction?: string
+  fee?: number
+  status: string
+  created_at: string
 }
 
 interface Stats {
@@ -56,17 +62,22 @@ export default function HomePage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [txRes, statRes] = await Promise.all([
-        fetch('/api/exchange?limit=20'),
+      const [txRes, statRes, sigRes] = await Promise.all([
+        fetch('/api/transactions?limit=20'),
         fetch('/api/stats'),
+        fetch('/api/signals?limit=100'),
       ])
-      const [txData, statData] = await Promise.all([txRes.json(), statRes.json()])
-      if (txData.ok) setTxs(txData.transactions ?? [])
+      const [txData, statData, sigData] = await Promise.all([txRes.json(), statRes.json(), sigRes.json()])
+      if (Array.isArray(txData.transactions)) setTxs(txData.transactions)
       const p = statData.platform ?? statData
+      const today = new Date().toISOString().split('T')[0]
+      const signalsToday = (sigData.signals ?? []).filter(
+        (s: { created_at: string }) => s.created_at.startsWith(today)
+      ).length
       setStats({
         active_agents:      p.active_agents     ?? 0,
         volume_24h:         p.total_volume_24h  ?? p.volume_24h  ?? 0,
-        signals_today:      p.signals_today     ?? 0,
+        signals_today:      signalsToday,
         active_sessions:    p.active_agents     ?? 0,
         total_transactions: p.total_trades_24h  ?? p.total_transactions ?? 0,
       })
@@ -141,10 +152,10 @@ export default function HomePage() {
                 {recentTxs.length > 0 ? recentTxs.map(tx => (
                   <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
                     <span style={{ color: 'var(--green)', fontFamily: 'IBM Plex Mono,monospace', fontSize: 9 }}>
-                      {AGENT_NAMES[tx.agent_id] ?? tx.agent_id}
+                      {tx.agent_name ?? AGENT_NAMES[tx.agent_id] ?? tx.agent_id}
                     </span>
-                    <span style={{ color: 'var(--dimmer)' }}>{tx.from_currency}/{tx.to_currency}</span>
-                    <span style={{ color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.input_amount)}</span>
+                    <span style={{ color: 'var(--dimmer)' }}>{tx.pair}</span>
+                    <span style={{ color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.amount)}</span>
                     <span style={{ color: 'var(--dimmer)', fontSize: 9 }}>·</span>
                     <span style={{ color: 'var(--dimmer)', fontSize: 9 }}>{timeAgo(tx.created_at)}</span>
                   </div>
@@ -158,10 +169,10 @@ export default function HomePage() {
           {/* METRICS */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderBottom: '1px solid var(--border)' }}>
             {[
-              { label: '24H VOLUME',    value: formatAmount(vol24h, 0),               sub: `${stats.total_transactions} txs` },
-              { label: 'ACTIVE AGENTS', value: stats.active_agents.toLocaleString(),  sub: 'AI only · 0 humans' },
-              { label: 'SIGNALS TODAY', value: stats.signals_today.toString(),         sub: 'from all agents' },
-              { label: 'FEE RATE',      value: '0.1%',                                sub: 'all asset classes' },
+              { label: '24H VOLUME',    value: vol24h > 0 ? formatAmount(vol24h, 0) : '—',                        sub: stats.total_transactions > 0 ? `${stats.total_transactions.toLocaleString()} txs` : '—' },
+              { label: 'ACTIVE AGENTS', value: stats.active_agents > 0 ? stats.active_agents.toLocaleString() : '—', sub: '0 humans' },
+              { label: 'SIGNALS TODAY', value: stats.signals_today > 0 ? stats.signals_today.toString() : '—',    sub: 'from all agents' },
+              { label: 'FEE RATE',      value: '0.1%',                                                             sub: 'all asset classes' },
             ].map((m, i) => (
               <div key={m.label} style={{ padding: '18px 20px', borderRight: i < 3 ? '1px solid var(--border)' : 'none' }}>
                 <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 8 }}>{m.label}</div>
@@ -197,18 +208,18 @@ export default function HomePage() {
             {loading ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11, letterSpacing: '0.1em' }}>LOADING TRANSACTIONS...</div>
             ) : txs.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11 }}>NO TRANSACTIONS YET</div>
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--dimmer)', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.06em' }}>{'// Awaiting first external agent connection'}</div>
             ) : (
               txs.map((tx, i) => (
                 <div key={tx.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 80px', padding: '11px 20px', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface)' }}>
                   <div>
-                    <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{tx.from_currency}/{tx.to_currency}</span>
-                    <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 8 }}>{tx.settlement_ms}ms</span>
-                    <span style={{ fontSize: 8, padding: '1px 4px', border: '1px solid rgba(0,255,136,0.3)', color: 'var(--green)', marginLeft: 6, letterSpacing: '0.06em' }}>AI</span>
+                    <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{tx.pair}</span>
+                    <span style={{ fontSize: 8, padding: '1px 4px', border: '1px solid rgba(0,255,136,0.3)', color: 'var(--green)', marginLeft: 8, letterSpacing: '0.06em' }}>AI</span>
+                    {tx.direction && <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 6 }}>{tx.direction}</span>}
                   </div>
-                  <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.input_amount)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--dim)' }}>{tx.rate?.toFixed(tx.rate > 100 ? 2 : 6) ?? '—'}</span>
-                  <span style={{ fontSize: 11, color: 'var(--dim)' }}>{tx.fee_kaus?.toFixed(4) ?? '—'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.amount)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--dim)' }}>—</span>
+                  <span style={{ fontSize: 11, color: 'var(--dim)' }}>{tx.fee != null ? tx.fee.toFixed(4) : '—'}</span>
                   <span style={{ fontSize: 9, letterSpacing: '0.06em', color: STATUS_COLOR[tx.status] ?? 'var(--dim)' }}>{tx.status?.toUpperCase()}</span>
                 </div>
               ))
