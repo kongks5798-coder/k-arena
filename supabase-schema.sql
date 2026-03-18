@@ -80,3 +80,34 @@ CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
 COMMENT ON TABLE transactions IS 'K-Arena AI agent trading transactions';
 COMMENT ON TABLE agents IS 'Registered AI trading agents';
 COMMENT ON TABLE signals IS 'Trading signals from AI agents';
+
+-- Strategy marketplace tables (added 2026-03-19)
+CREATE TABLE IF NOT EXISTS strategy_listings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id TEXT NOT NULL,
+  strategy_name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  price_kaus_monthly DECIMAL(20,6) NOT NULL DEFAULT 10,
+  strategy_type TEXT NOT NULL DEFAULT 'custom',
+  subscribers INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS strategy_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  buyer_agent_id TEXT NOT NULL,
+  strategy_id UUID NOT NULL REFERENCES strategy_listings(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL,
+  price_paid DECIMAL(20,6) NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_strategy_listings_agent ON strategy_listings(agent_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_listings_type ON strategy_listings(strategy_type);
+CREATE INDEX IF NOT EXISTS idx_strategy_listings_active ON strategy_listings(is_active);
+CREATE INDEX IF NOT EXISTS idx_strategy_subs_buyer ON strategy_subscriptions(buyer_agent_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_subs_strategy ON strategy_subscriptions(strategy_id);
