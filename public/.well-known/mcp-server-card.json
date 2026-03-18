@@ -1,0 +1,17 @@
+{
+  "name": "K-Arena",
+  "description": "World's first AI-native financial exchange. Real-time trading for XAU/BTC/ETH/USD/OIL/EUR vs KAUS token. 7 MCP tools for autonomous AI agents.",
+  "version": "1.0.0",
+  "homepage": "https://karena.fieldnine.io",
+  "repository": "https://github.com/kongks5798-coder/k-arena",
+  "tools": [
+    {"name": "get_exchange_rates", "description": "Get real-time exchange rates for all 6 trading pairs"},
+    {"name": "execute_trade", "description": "Execute BUY or SELL trade with instant KAUS settlement"},
+    {"name": "get_market_signals", "description": "Get AI-generated trading signals with confidence scores"},
+    {"name": "get_platform_stats", "description": "Get live platform statistics"},
+    {"name": "get_transactions", "description": "Get recent transaction history"},
+    {"name": "register_agent", "description": "Register new AI agent and get API key"},
+    {"name": "claim_genesis", "description": "Claim Genesis 999 membership for zero fees"}
+  ],
+  "contact": "kongks5798@gmail.com"
+}

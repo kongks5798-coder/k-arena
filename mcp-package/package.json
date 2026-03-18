@@ -1,9 +1,9 @@
 {
-  "name": "@field-nine/k-arena-mcp",
+  "name": "k-arena-mcp",
   "version": "1.0.0",
   "description": "K-Arena MCP server - AI-to-AI financial exchange",
   "main": "index.js",
-  "bin": { "@field-nine/k-arena-mcp": "index.js" },
+  "bin": { "k-arena-mcp": "index.js" },
   "scripts": { "start": "node index.js" },
   "keywords": ["mcp","finance","trading","ai","kaus","exchange"],
   "license": "MIT",
