@@ -77,16 +77,14 @@ export default function HomePage() {
 
   const fetchStats = useCallback(async () => {
     try {
+      const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00.000Z'
       const [statRes, sigRes] = await Promise.all([
         fetch('/api/stats'),
-        fetch('/api/signals?limit=200'),
+        fetch(`/api/signals?limit=500&since=${encodeURIComponent(todayStart)}`),
       ])
       const [statData, sigData] = await Promise.all([statRes.json(), sigRes.json()])
       const p = statData.platform ?? statData
-      const today = new Date().toISOString().split('T')[0]
-      const signalsToday = (sigData.signals ?? []).filter(
-        (s: { created_at: string }) => s.created_at?.startsWith(today)
-      ).length
+      const signalsToday = (sigData.signals ?? []).length
       setStats({
         active_agents:      p.active_agents      ?? 0,
         total_agents:       p.total_agents        ?? p.active_agents ?? 0,

@@ -13,14 +13,16 @@ function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 
-// Normalize DB row → UI shape (pair, amount, rate, fee)
-function normalize(tx: Record<string, unknown>) {
+// Normalize DB row → UI shape (pair, amount, rate, fee, agent_name)
+function normalize(tx: Record<string, unknown>, nameMap: Record<string, string> = {}) {
+  const agentId = tx.agent_id as string | undefined
   return {
     ...tx,
-    pair:   tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—',
-    amount: tx.input_amount,
-    rate:   tx.rate != null ? parseFloat(String(tx.rate)) : null,
-    fee:    tx.fee_kaus,
+    pair:       tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—',
+    amount:     tx.input_amount,
+    rate:       tx.rate != null ? parseFloat(String(tx.rate)) : null,
+    fee:        tx.fee_kaus,
+    agent_name: agentId ? (nameMap[agentId] ?? null) : null,
   }
 }
 
@@ -43,6 +45,19 @@ export async function GET(request: Request) {
     'Content-Type': 'application/json',
   }
 
+  // Pre-fetch agent name map once
+  const agentNameMap: Record<string, string> = {}
+  try {
+    const agRes = await fetch(
+      `${supabaseUrl}/rest/v1/agents?select=id,name&limit=100`,
+      { headers: supabaseHeaders, signal: AbortSignal.timeout(4000) },
+    )
+    if (agRes.ok) {
+      const agents: Array<{ id: string; name: string }> = await agRes.json()
+      for (const a of agents) agentNameMap[a.id] = a.name
+    }
+  } catch { /* proceed without names */ }
+
   const abortController = new AbortController()
   request.signal.addEventListener('abort', () => abortController.abort())
 
@@ -58,7 +73,7 @@ export async function GET(request: Request) {
         })
         if (snapshotRes.ok) {
           const raw = await snapshotRes.json()
-          const transactions = Array.isArray(raw) ? raw.map(normalize) : []
+          const transactions = Array.isArray(raw) ? raw.map(t => normalize(t, agentNameMap)) : []
           controller.enqueue(encode(sseEvent('snapshot', { transactions })))
         } else {
           controller.enqueue(encode(sseEvent('snapshot', { transactions: [] })))
@@ -95,7 +110,7 @@ export async function GET(request: Request) {
 
           if (updateRes.ok) {
             const rawUpd: Array<Record<string, unknown>> = await updateRes.json()
-            const transactions = rawUpd.map(normalize)
+            const transactions = rawUpd.map(t => normalize(t, agentNameMap))
             if (transactions.length > 0) {
               controller.enqueue(encode(sseEvent('update', { transactions })))
               // Advance latestTimestamp to the most recent returned row

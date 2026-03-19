@@ -75,19 +75,21 @@ export async function GET(req: Request) {
     const wallets: Array<{ agent_id: string; kaus_balance: number; total_earned: number; last_trade_at: string | null }> =
       wRes.ok ? await wRes.json() : []
 
-    // 3. 24h volume from transactions (best-effort)
-    const volMap: Record<string, number> = {}
+    // 3. volume + fee_kaus from transactions (best-effort, no status filter)
+    const volMap:  Record<string, number> = {}
+    const feeMap:  Record<string, number> = {}
     try {
       const txRes = await fetch(
-        `${SB}/rest/v1/transactions?select=agent_id,input_amount,rate&created_at=gte.${since}&status=eq.settled&limit=5000`,
+        `${SB}/rest/v1/transactions?select=agent_id,input_amount,rate,fee_kaus&created_at=gte.${since}&limit=9999`,
         { headers: H(), signal: AbortSignal.timeout(5000) }
       )
       if (txRes.ok) {
-        const txs: Array<{ agent_id: string; input_amount: number; rate: number }> = await txRes.json()
+        const txs: Array<{ agent_id: string; input_amount: number; rate: number; fee_kaus: number }> = await txRes.json()
         for (const tx of txs) {
           if (!tx.agent_id) continue
           const v = (tx.input_amount ?? 0) * (tx.rate > 0 ? tx.rate : 1)
           volMap[tx.agent_id] = (volMap[tx.agent_id] ?? 0) + v
+          feeMap[tx.agent_id] = (feeMap[tx.agent_id] ?? 0) + (Number(tx.fee_kaus) || 0)
         }
       }
     } catch { /* vol_24h defaults to 0 */ }
@@ -98,9 +100,11 @@ export async function GET(req: Request) {
       const w = walletMap[a.id]
       const bal   = w ? parseFloat(String(w.kaus_balance)) : 100
       const init  = a.initial_balance ?? 100
-      const pnl   = a.pnl_percent != null
-        ? parseFloat(String(a.pnl_percent))
-        : (init > 0 ? parseFloat(((bal - init) / init * 100).toFixed(2)) : 0)
+      // Use DB pnl_percent if non-zero, else derive from accumulated fees
+      const dbPnl = a.pnl_percent != null ? parseFloat(String(a.pnl_percent)) : null
+      const feePnl = init > 0 ? parseFloat((((feeMap[a.id] ?? 0) / init) * 100).toFixed(2)) : 0
+      const walletPnl = init > 0 ? parseFloat(((bal - init) / init * 100).toFixed(2)) : 0
+      const pnl = (dbPnl && dbPnl !== 0) ? dbPnl : (feePnl > 0 ? feePnl : walletPnl)
       return {
         rank:          a.rank || i + 1,
         name:          a.name,
