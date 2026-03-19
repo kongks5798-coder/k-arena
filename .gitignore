@@ -35,3 +35,5 @@ next-env.d.ts
 mcp-package/node_modules
 
 .vercel
+.env.vercel.prod
+.env.vercel.*
