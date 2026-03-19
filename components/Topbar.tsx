@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 const PATH_LABELS: Record<string, string> = {
   '/': 'overview()',
@@ -24,12 +24,32 @@ const PATH_LABELS: Record<string, string> = {
 export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
   const pathname = usePathname()
   const [time, setTime] = useState('')
+  const [topPnl, setTopPnl] = useState<{ name: string; pnl: number; slug: string } | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     const update = () => setTime(new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC')
     update()
     const timer = setInterval(update, 1000)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const fetchTopPnl = async () => {
+      try {
+        const res = await fetch('/api/leaderboard', { cache: 'no-store' })
+        if (!res.ok) return
+        const d = await res.json()
+        const agents: Array<{ name: string; pnl_percent: number }> = d.agents ?? []
+        if (agents.length === 0) return
+        const top = agents[0]
+        const slug = top.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        setTopPnl({ name: top.name, pnl: top.pnl_percent, slug })
+      } catch { /* silent */ }
+    }
+    fetchTopPnl()
+    intervalRef.current = setInterval(fetchTopPnl, 3 * 60 * 1000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [])
 
   const pathLabel = PATH_LABELS[pathname] ?? pathname.slice(1)
@@ -63,6 +83,21 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {topPnl && (
+          <Link href={`/agent/${topPnl.slug}`} style={{
+            display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none',
+            borderLeft: '1px solid var(--border)', paddingLeft: 12,
+          }}>
+            <span style={{ fontSize: 8, color: 'var(--dimmer)', letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>TOP PNL</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              color: topPnl.pnl >= 0 ? 'var(--green)' : '#ef4444',
+              fontFamily: 'IBM Plex Mono, monospace',
+            }}>
+              {topPnl.pnl >= 0 ? '+' : ''}{topPnl.pnl.toFixed(2)}%
+            </span>
+          </Link>
+        )}
         <span style={{ fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.06em', fontFamily: 'IBM Plex Mono, monospace' }}>{time}</span>
         {rightContent ?? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
