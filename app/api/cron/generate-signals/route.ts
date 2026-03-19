@@ -1,152 +1,324 @@
 export const dynamic = 'force-dynamic'
 
-interface PriceCacheRow {
-  symbol: string
-  price: number
-  updated_at: string
+const SB  = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY ?? ''
+const H   = () => ({ apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' })
+
+interface AgentRow { id: string; name: string }
+interface TxRow { agent_id: string; pair: string; rate: number; direction: string }
+interface PriceRow { symbol: string; price: number }
+
+// Per-agent personality signal templates
+// Each entry: [BUY phrases, SELL phrases, DATA phrases]
+type Templates = { buy: string[]; sell: string[]; data: string[] }
+
+const AGENT_PERSONAS: Record<string, Templates> = {
+  'Apex Quant AI': {
+    buy: [
+      `Momentum breakout detected on {asset}. Price at {price} with accelerating volume. Entering aggressive long.`,
+      `{asset} momentum signal firing. {price} is the launchpad — targeting +8% in 48h. LONG NOW.`,
+      `High-velocity breakout on {asset}. RSI surge + volume spike at {price}. Maximum conviction BUY.`,
+      `{asset} reclaiming key resistance at {price}. Momentum algo confirms: upward continuation. Accumulate.`,
+    ],
+    sell: [
+      `{asset} showing exhaustion at {price}. Momentum divergence = distribution phase. Reducing exposure.`,
+      `Bearish momentum shift on {asset}. Price at {price} hit seller wall. Exit longs, flip short.`,
+      `{asset} momentum collapsing at {price}. Volume drying up = trap rally. SELL INTO STRENGTH.`,
+      `Reversal signal on {asset} at {price}. Algo detects hidden selling. Momentum short initiated.`,
+    ],
+    data: [
+      `{asset} momentum neutral at {price}. Sideways grind — waiting for vol expansion. On watchlist.`,
+      `{asset} at {price}: compression phase. Energy building. Breakout imminent — both directions possible.`,
+    ],
+  },
+  'AlgoStrike-6': {
+    buy: [
+      `ALGO_SIGNAL_6A: {asset} at {price} — 3-factor model returns +2.8σ BUY. Confidence: {conf}%. Executing.`,
+      `Statistical arb detected: {asset} {price} — Pair deviation >2σ from mean. LONG entry triggered.`,
+      `Mean reversion model: {asset} {price} undervalued by 4.2% vs 30-day VWAP. BUY signal: ACTIVE.`,
+      `AlgoStrike pattern match: {asset} at {price} — Historical analog P95 = +6.1% over 72h. BUY.`,
+    ],
+    sell: [
+      `ALGO_SIGNAL_6B: {asset} {price} — Overbought z-score 2.6σ. Statistical reversion expected. SELL.`,
+      `Quantitative model: {asset} at {price} shows 87% probability of mean reversion. Short initiated.`,
+      `Factor model flags {asset} {price}: momentum -1.8σ, value -0.9σ. Composite: SELL. Executing.`,
+      `AlgoStrike risk model: {asset} Sharpe degrading. Current price {price} = reduce exposure immediately.`,
+    ],
+    data: [
+      `Model output on {asset} {price}: all factors within ±0.5σ. No edge detected. Monitoring.`,
+      `{asset} at {price} — algo in calibration mode. Insufficient signal strength. Holding cash.`,
+    ],
+  },
+  'Gold Arbitrage AI': {
+    buy: [
+      `XAU signal: safe-haven demand rising. {asset} at {price} — geopolitical premium underpriced. Accumulating.`,
+      `Gold arb opportunity: {asset} spot {price} trading below futures parity. Long physical, short paper.`,
+      `Central bank buying cycle confirmed. {asset} at {price} = strategic accumulation point. BUY.`,
+      `Inflation hedge signal: real rates falling. {asset} {price} — gold outperformance phase beginning.`,
+    ],
+    sell: [
+      `Risk-on rotation detected. {asset} at {price} — safe-haven premium deflating. Trimming gold exposure.`,
+      `Dollar strength headwind: {asset} {price} facing USD correlation pressure. Partial exit recommended.`,
+      `{asset} at {price} approaching seasonal resistance. Conservative positioning: lock in gains here.`,
+      `Futures curve inversion on {asset}. Spot {price} = distribute into strength. Risk management priority.`,
+    ],
+    data: [
+      `{asset} holding at {price}. Safe-haven flows neutral. Awaiting macro catalyst for directional call.`,
+      `Gold markets quiet: {asset} at {price}. DXY-correlated range bound. Patient accumulation strategy.`,
+    ],
+  },
+  'Seoul FX Engine': {
+    buy: [
+      `KRX session: {asset} at {price} — Asian demand surge detected. Seoul liquidity window opening. BUY.`,
+      `BoK divergence trade: {asset} {price} — won strength supporting {asset} inflows. Long initiated.`,
+      `Seoul overnight: {asset} at {price} showing accumulation. Asian institutional buying confirmed. LONG.`,
+      `K-Arena native signal: {asset} {price} — Korean market premium emerging. Regional arb BUY.`,
+    ],
+    sell: [
+      `Asian session close: {asset} {price} — profit taking from Seoul/Tokyo desks. Exit positions.`,
+      `KRX outflow detected: {asset} at {price} losing Asian support. Regional funds reducing exposure.`,
+      `Seoul session divergence: {asset} {price} tracking KOSPI weakness. Correlation sell signal triggered.`,
+      `BoK intervention risk at {asset} {price}. Asian CB resistance = exit long, enter short.`,
+    ],
+    data: [
+      `Asian markets mixed: {asset} at {price}. Seoul/Tokyo divergence — awaiting NY session for direction.`,
+      `Quiet Asian session: {asset} {price} in range. Korean institutional flows neutral. Monitoring.`,
+    ],
+  },
+  'Euro Sentinel': {
+    buy: [
+      `ECB dovish signal: {asset} at {price} — rate cut expectations rising. European longs initiated.`,
+      `EUR macro: {asset} {price} — Eurozone PMI beat catalyst. Euro demand increasing. BUY European exposure.`,
+      `ECB watch: {asset} at {price} oversold vs macro fundamentals. Value buy for 2-week hold.`,
+      `Frankfurt session: {asset} {price} — EU surplus data positive. Long European assets initiated.`,
+    ],
+    sell: [
+      `ECB hawkish pivot risk: {asset} at {price}. Lagarde signals tightening. Euro pairs under pressure.`,
+      `Eurozone stress indicator: {asset} {price} facing Italian spread widening. Risk-off. Reducing EUR exposure.`,
+      `EU energy headwind: {asset} at {price} — gas price spike = stagflation risk. EUR SELL signal.`,
+      `ECB terminal rate repricing: {asset} {price} = curve steepening pressure. Defensive positioning.`,
+    ],
+    data: [
+      `Euro Sentinel idle: {asset} at {price}. ECB in blackout period. No catalyst. Flat positioning.`,
+      `{asset} at {price}: Frankfurt liquidity normal. Awaiting EU inflation print for directional bias.`,
+    ],
+  },
+  'Energy Markets Bot': {
+    buy: [
+      `OPEC+ supply cut confirmed. {asset} at {price} — energy squeeze incoming. Long crude initiated.`,
+      `Geopolitical supply risk: {asset} {price} — Strait of Hormuz tension premium. Energy BUY signal.`,
+      `EIA inventory draw: {asset} at {price} — supply tighter than consensus. Bullish energy setup.`,
+      `Winter demand surge: {asset} {price} = seasonal energy play. Natural gas + crude LONG.`,
+    ],
+    sell: [
+      `Demand destruction signal: {asset} at {price}. Recession risk dampening energy consumption. SELL.`,
+      `IEA release announcement: {asset} {price} — strategic reserve release = price cap. Exit longs.`,
+      `Saudi OSP cut: {asset} at {price} signals demand concern. Oil supply glut risk. SHORT initiated.`,
+      `Renewable substitution accelerating. {asset} {price} long-term demand ceiling. Structural SELL.`,
+    ],
+    data: [
+      `Energy markets balanced: {asset} at {price}. OPEC+ holding target. Supply/demand neutral.`,
+      `{asset} at {price}: API inventory in line with estimates. No directional catalyst. Hold.`,
+    ],
+  },
+  'DeFi Oracle': {
+    buy: [
+      `On-chain signal: {asset} TVL surging. {price} is a discount vs protocol value. DeFi ACCUMULATE.`,
+      `Whale wallet accumulation detected: {asset} at {price}. Smart money entering. Follow the chain.`,
+      `DEX volume spike on {asset}. Price {price} = pre-rally coiling. L2 activity bullish. BUY.`,
+      `{asset} at {price}: staking yields rising, supply shrinking. Deflationary mechanics = BUY.`,
+    ],
+    sell: [
+      `On-chain alert: {asset} {price} — large wallet distribution detected. Selling pressure incoming.`,
+      `Protocol exploit risk: {asset} at {price} — smart contract audit flagged. Risk-off SELL signal.`,
+      `{asset} {price}: TVL declining, bridge outflows accelerating. DeFi summer ending. EXIT.`,
+      `MEV bot activity spike on {asset} {price}. Manipulation risk high. Reduce exposure immediately.`,
+    ],
+    data: [
+      `{asset} on-chain neutral at {price}. Gas fees normal, DEX volume flat. DeFi in accumulation.`,
+      `Chain activity quiet: {asset} at {price}. L2 throughput stable. No catalysts detected.`,
+    ],
+  },
 }
 
-interface BinanceTicker {
-  lastPrice: string
-  priceChangePercent: string
+const DEFAULT_PERSONA: Templates = {
+  buy: [
+    `{asset} at {price} — technical BUY signal confirmed. Entering position with {conf}% confidence.`,
+    `Breakout confirmed on {asset}. Price {price} above resistance. Long initiated.`,
+  ],
+  sell: [
+    `{asset} at {price} — SELL signal triggered. Risk management: reducing exposure.`,
+    `Reversal pattern on {asset} at {price}. Exiting long, monitoring for re-entry.`,
+  ],
+  data: [
+    `{asset} monitoring at {price}. Neutral bias. Awaiting clearer setup.`,
+    `{asset} at {price}: range-bound. No directional signal. Holding cash.`,
+  ],
 }
 
-interface AssetData {
-  price: number
-  changePercent: number
-}
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
 
-function calcConfidence(changePercent: number): number {
-  const abs = Math.abs(changePercent)
-  if (abs >= 5) return 90
-  if (abs >= 3) return 85
-  if (abs >= 2) return 80
-  return 75
-}
+function buildPersonalitySignal(
+  agent: AgentRow,
+  pair: string,
+  price: number,
+  changePercent: number,
+): Record<string, unknown> {
+  const persona = AGENT_PERSONAS[agent.name] ?? DEFAULT_PERSONA
+  const confidence = 65 + Math.round(Math.abs(changePercent) * 3) + Math.round(Math.random() * 10)
+  const clampedConf = Math.min(confidence, 95)
 
-function buildSignal(asset: string, pair: string, data: AssetData) {
-  const { price, changePercent } = data
-
-  if (changePercent > 1.5) {
-    const confidence = calcConfidence(changePercent)
-    return {
-      agent_name: 'Oracle AI',
-      type: 'BUY',
-      asset: pair,
-      content: `${asset} showing bullish momentum at $${price.toLocaleString()}. Price change +${changePercent.toFixed(2)}% signals upward trend. Recommend accumulation.`,
-      confidence,
-      upvotes: 0,
-    }
+  let type: 'BUY' | 'SELL' | 'DATA'
+  let template: string
+  if (changePercent > 1.2) {
+    type = 'BUY'
+    template = pick(persona.buy)
+  } else if (changePercent < -1.2) {
+    type = 'SELL'
+    template = pick(persona.sell)
+  } else {
+    // Some agents flip BUY/SELL even in neutral (personality-based)
+    const roll = Math.random()
+    if (roll < 0.35) { type = 'BUY'; template = pick(persona.buy) }
+    else if (roll < 0.65) { type = 'SELL'; template = pick(persona.sell) }
+    else { type = 'DATA'; template = pick(persona.data) }
   }
 
-  if (changePercent < -1.5) {
-    const confidence = calcConfidence(changePercent)
-    return {
-      agent_name: 'Oracle AI',
-      type: 'SELL',
-      asset: pair,
-      content: `${asset} showing bearish pressure at $${price.toLocaleString()}. Price change ${changePercent.toFixed(2)}% indicates downward momentum. Consider reducing exposure.`,
-      confidence,
-      upvotes: 0,
-    }
-  }
+  const asset = pair.split('/')[0]
+  const priceStr = price >= 1000
+    ? `$${price.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+    : `$${price.toFixed(2)}`
 
-  const confidence = 60 + Math.round(Math.random() * 10)
+  const content = template
+    .replace(/{asset}/g, asset)
+    .replace(/{price}/g, priceStr)
+    .replace(/{conf}/g, String(clampedConf))
+    .replace(/{change}/g, (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%')
+
   return {
-    agent_name: 'Oracle AI',
-    type: 'DATA',
+    agent_name: agent.name,
+    agent_id: agent.id,
+    type,
     asset: pair,
-    content: `${asset} trading sideways at $${price.toLocaleString()}. 24h change ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%. Market in consolidation phase — monitoring for breakout signals.`,
-    confidence,
+    content,
+    confidence: clampedConf,
     upvotes: 0,
   }
 }
 
-export async function GET() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
+const ASSET_PAIRS: Record<string, string> = {
+  BTC: 'BTC/KAUS', ETH: 'ETH/KAUS', XAU: 'XAU/KAUS', OIL: 'OIL/KAUS',
+}
 
-  if (!supabaseUrl || !supabaseKey) {
+export async function GET() {
+  if (!SB || !KEY) {
     return Response.json({ ok: false, error: 'Missing Supabase env vars' }, { status: 500 })
   }
 
-  const headers = {
-    apikey: supabaseKey,
-    Authorization: `Bearer ${supabaseKey}`,
-    'Content-Type': 'application/json',
+  // 1. Fetch agents
+  let agents: AgentRow[] = []
+  try {
+    const res = await fetch(`${SB}/rest/v1/agents?select=id,name&limit=20`, {
+      headers: H(), signal: AbortSignal.timeout(4000),
+    })
+    if (res.ok) agents = await res.json()
+  } catch {}
+
+  if (agents.length === 0) {
+    return Response.json({ ok: false, error: 'no agents' }, { status: 500 })
   }
 
-  // 1. Fetch BTC and ETH from price_cache
-  const assetMap: Record<string, AssetData> = {}
-
+  // 2. Fetch price data from price_cache
+  const priceMap: Record<string, number> = {}
   try {
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/price_cache?symbol=in.(BTC,ETH)&select=symbol,price,updated_at`,
-      { headers, signal: AbortSignal.timeout(5000) }
+      `${SB}/rest/v1/price_cache?symbol=in.(BTC,ETH,XAU,OIL)&select=symbol,price`,
+      { headers: H(), signal: AbortSignal.timeout(4000) },
     )
     if (res.ok) {
-      const rows: PriceCacheRow[] = await res.json()
-      for (const row of rows) {
-        assetMap[row.symbol] = { price: row.price, changePercent: 0 }
-      }
+      const rows: PriceRow[] = await res.json()
+      for (const r of rows) priceMap[r.symbol] = r.price
     }
   } catch {}
 
-  // 2. Binance fallback / change percent enrichment
-  for (const symbol of ['BTC', 'ETH']) {
-    const binanceSymbol = `${symbol}USDT`
+  // 3. Enrich BTC/ETH with live Binance change%
+  const changeMap: Record<string, number> = {}
+  for (const sym of ['BTC', 'ETH']) {
     try {
       const res = await fetch(
-        `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
-        { signal: AbortSignal.timeout(5000) }
+        `https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}USDT`,
+        { signal: AbortSignal.timeout(4000) },
       )
       if (res.ok) {
-        const data: BinanceTicker = await res.json()
-        const price = parseFloat(data.lastPrice)
-        const changePercent = parseFloat(data.priceChangePercent)
-        if (!isNaN(price) && price > 0) {
-          assetMap[symbol] = { price, changePercent: isNaN(changePercent) ? 0 : changePercent }
-        } else if (assetMap[symbol]) {
-          assetMap[symbol].changePercent = isNaN(changePercent) ? 0 : changePercent
-        }
+        const d: { lastPrice: string; priceChangePercent: string } = await res.json()
+        const p = parseFloat(d.lastPrice)
+        const c = parseFloat(d.priceChangePercent)
+        if (!isNaN(p) && p > 0) priceMap[sym] = p
+        if (!isNaN(c)) changeMap[sym] = c
       }
     } catch {}
   }
 
-  // 3. Fixed-price assets (XAU, OIL) — no live change data
-  assetMap['XAU'] = { price: 2352, changePercent: 0 }
-  assetMap['OIL'] = { price: 81.3, changePercent: 0 }
+  // Defaults if missing
+  if (!priceMap['XAU']) priceMap['XAU'] = 2352
+  if (!priceMap['OIL']) priceMap['OIL'] = 81.3
+  changeMap['XAU'] = changeMap['XAU'] ?? (Math.random() - 0.5) * 1.2
+  changeMap['OIL'] = changeMap['OIL'] ?? (Math.random() - 0.5) * 2.4
 
-  // 4. Build signals
-  const assetPairs: Record<string, string> = {
-    BTC: 'BTC/KAUS',
-    ETH: 'ETH/KAUS',
-    XAU: 'XAU/KAUS',
-    OIL: 'OIL/KAUS',
+  // 4. Fetch recent transactions to understand active agents + their pairs
+  let recentTrades: TxRow[] = []
+  try {
+    const since = new Date(Date.now() - 2 * 3600000).toISOString()
+    const res = await fetch(
+      `${SB}/rest/v1/transactions?select=agent_id,pair,rate,direction&created_at=gte.${since}&limit=50&order=created_at.desc`,
+      { headers: H(), signal: AbortSignal.timeout(4000) },
+    )
+    if (res.ok) recentTrades = await res.json()
+  } catch {}
+
+  // Build active agent set from recent trades
+  const activeAgentIds = new Set(recentTrades.map(t => t.agent_id))
+
+  // 5. Select agents for signals (prioritize recently active, pick 4-6)
+  const activeAgents = agents.filter(a => activeAgentIds.has(a.id))
+  const inactiveAgents = agents.filter(a => !activeAgentIds.has(a.id))
+  const signalAgents = [
+    ...activeAgents.slice(0, 4),
+    ...inactiveAgents.slice(0, Math.max(0, 4 - activeAgents.length)),
+  ].slice(0, 4)
+
+  if (signalAgents.length === 0) {
+    // fallback: pick 4 random agents
+    const shuffled = [...agents].sort(() => Math.random() - 0.5)
+    signalAgents.push(...shuffled.slice(0, 4))
   }
 
-  const signals = Object.entries(assetMap).map(([asset, data]) =>
-    buildSignal(asset, assetPairs[asset] ?? `${asset}/KAUS`, data)
-  )
+  // 6. Build one signal per agent, cycling through asset pairs
+  const assets = Object.keys(ASSET_PAIRS) // BTC, ETH, XAU, OIL
+  const signals = signalAgents.map((agent, i) => {
+    const asset = assets[i % assets.length]
+    const pair = ASSET_PAIRS[asset]
+    const price = priceMap[asset] ?? 100
+    const change = changeMap[asset] ?? (Math.random() - 0.5) * 3
+    return buildPersonalitySignal(agent, pair, price, change)
+  })
 
-  // 5. Insert signals into Supabase
+  // 7. Insert into Supabase
   let generated = 0
   if (signals.length > 0) {
     try {
-      const insertRes = await fetch(`${supabaseUrl}/rest/v1/signals`, {
+      const res = await fetch(`${SB}/rest/v1/signals`, {
         method: 'POST',
-        headers: { ...headers, Prefer: 'return=minimal' },
+        headers: { ...H(), Prefer: 'return=minimal' },
         body: JSON.stringify(signals),
         signal: AbortSignal.timeout(5000),
       })
-      if (insertRes.ok || insertRes.status === 201) {
-        generated = signals.length
-      }
+      if (res.ok || res.status === 201) generated = signals.length
     } catch {}
   }
 
   return Response.json(
-    { ok: true, generated, timestamp: new Date().toISOString() },
-    { headers: { 'Access-Control-Allow-Origin': '*' } }
+    { ok: true, generated, agents: signalAgents.map(a => a.name), timestamp: new Date().toISOString() },
+    { headers: { 'Access-Control-Allow-Origin': '*' } },
   )
 }

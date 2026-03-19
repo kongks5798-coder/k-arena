@@ -69,7 +69,9 @@ async function executeOneTrade(
   const pair = pairList[seed % pairList.length]
   const direction = DIRECTIONS[seed % 2]
   const amount = 10 + (seed % 91) // $10–$100
-  const rate = pairToRate(pair, rates)
+  const baseRate = pairToRate(pair, rates)
+  const slippage = 1 + (Math.random() - 0.5) * 0.016 // ±0.8% slippage
+  const rate = parseFloat((baseRate * slippage).toFixed(6))
 
   try {
     const res = await fetch(`${BASE_URL}/api/exchange`, {
