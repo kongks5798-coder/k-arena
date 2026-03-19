@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
   const agentId = searchParams.get('agent_id')
   const pair = searchParams.get('pair')
+  const since = searchParams.get('since') // ISO timestamp for time filtering
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
     try {
       let url = `${supabaseUrl}/rest/v1/transactions?select=id,agent_id,from_currency,to_currency,input_amount,output_amount,rate,fee_kaus,settlement_ms,status,created_at&order=created_at.desc&limit=${limit}`
       if (agentId) url += `&agent_id=eq.${agentId}`
+      if (since) url += `&created_at=gte.${since}`
 
       const r = await fetch(url, {
         headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
