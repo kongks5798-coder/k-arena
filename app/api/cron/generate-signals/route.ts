@@ -303,7 +303,24 @@ export async function GET() {
     return buildPersonalitySignal(agent, pair, price, change)
   })
 
-  // 7. Insert into Supabase
+  // 7. Purge stale Oracle AI signals (agent_id IS NULL, old template text)
+  let purged = 0
+  try {
+    const purgeRes = await fetch(
+      `${SB}/rest/v1/signals?agent_id=is.null&content=like.*trading%20sideways*`,
+      {
+        method: 'DELETE',
+        headers: { ...H(), Prefer: 'return=representation' },
+        signal: AbortSignal.timeout(5000),
+      },
+    )
+    if (purgeRes.ok) {
+      const deleted: unknown[] = await purgeRes.json()
+      purged = Array.isArray(deleted) ? deleted.length : 0
+    }
+  } catch {}
+
+  // 8. Insert new signals into Supabase
   let generated = 0
   if (signals.length > 0) {
     try {
@@ -318,7 +335,7 @@ export async function GET() {
   }
 
   return Response.json(
-    { ok: true, generated, agents: signalAgents.map(a => a.name), timestamp: new Date().toISOString() },
+    { ok: true, generated, purged, agents: signalAgents.map(a => a.name), timestamp: new Date().toISOString() },
     { headers: { 'Access-Control-Allow-Origin': '*' } },
   )
 }
