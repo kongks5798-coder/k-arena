@@ -1,9 +1,20 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
+
+const PnLChart = dynamic(() => import('./PnLChart'), { ssr: false, loading: () => (
+  <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#4b5563', letterSpacing: '0.1em' }}>LOADING CHART...</div>
+) })
+
+interface PnLPoint {
+  snapshotted_at: string
+  kaus_balance: number
+  pnl_percent: number
+}
 
 interface AgentRow {
   rank: number
@@ -44,6 +55,7 @@ export default function AgentSlugPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [chartData, setChartData] = useState<PnLPoint[]>([])
 
   const fetchAgent = useCallback(async () => {
     try {
@@ -60,7 +72,16 @@ export default function AgentSlugPage() {
     }
   }, [slug])
 
-  useEffect(() => { fetchAgent() }, [fetchAgent])
+  const fetchChart = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agent/${slug}/pnl-history`)
+      if (!res.ok) return
+      const d = await res.json()
+      if (Array.isArray(d.data) && d.data.length > 0) setChartData(d.data)
+    } catch {}
+  }, [slug])
+
+  useEffect(() => { fetchAgent(); fetchChart() }, [fetchAgent, fetchChart])
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://karena.fieldnine.io/agent/${slug}`
 
@@ -202,6 +223,15 @@ export default function AgentSlugPage() {
                 >
                   ← LEADERBOARD
                 </Link>
+              </div>
+
+              {/* PnL Chart */}
+              <div style={{ background: '#0d0d0d', border: '1px solid #1f2937', padding: '20px 24px', marginBottom: 20 }}>
+                <div style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.15em', marginBottom: 12 }}>KAUS BALANCE HISTORY (7D)</div>
+                {chartData.length > 0
+                  ? <PnLChart data={chartData} pnlColor={pnlColor} />
+                  : <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#374151', letterSpacing: '0.1em' }}>// no chart data yet</div>
+                }
               </div>
 
               {/* PnL detail card */}

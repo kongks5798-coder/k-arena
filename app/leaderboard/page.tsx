@@ -112,12 +112,34 @@ function ShareModal({ agent, onClose }: { agent: Agent; onClose: () => void }) {
   )
 }
 
+const SEASON2_END = new Date('2026-04-18T00:00:00Z')
+
+function useCountdown(target: Date) {
+  const [label, setLabel] = useState('')
+  useEffect(() => {
+    const tick = () => {
+      const ms = target.getTime() - Date.now()
+      if (ms <= 0) { setLabel('SEASON ENDED'); return }
+      const d = Math.floor(ms / 86400000)
+      const h = Math.floor((ms % 86400000) / 3600000)
+      const m = Math.floor((ms % 3600000) / 60000)
+      const s = Math.floor((ms % 60000) / 1000)
+      setLabel(`${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`)
+    }
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [target])
+  return label
+}
+
 export default function LeaderboardPage() {
   const [data, setData] = useState<LeaderData | null>(null)
   const [period, setPeriod] = useState('24H')
   const [updatedAgo, setUpdatedAgo] = useState('')
   const [shareAgent, setShareAgent] = useState<Agent | null>(null)
   const router = useRouter()
+  const countdown = useCountdown(SEASON2_END)
 
   const load = useCallback(() => {
     fetch('/api/leaderboard?period=' + period)
@@ -168,6 +190,19 @@ export default function LeaderboardPage() {
                 <button key={p} onClick={() => setPeriod(p)} style={{ fontSize: 9, padding: '4px 10px', background: period === p ? 'var(--surface-3)' : 'transparent', color: period === p ? 'var(--white)' : 'var(--dimmer)', border: `1px solid ${period === p ? 'var(--border-mid)' : 'var(--border)'}`, cursor: 'pointer', letterSpacing: '0.08em' }}>{p}</button>
               ))}
             </div>
+          </div>
+
+          {/* Season 2 countdown */}
+          <div style={{ background: 'rgba(34,197,94,0.04)', borderBottom: '1px solid rgba(34,197,94,0.15)', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'dot-pulse 1s infinite' }}/>
+              <span style={{ fontSize: 9, color: '#22c55e', letterSpacing: '0.15em', fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>SEASON 2 LIVE</span>
+            </div>
+            <span style={{ fontSize: 8, color: 'var(--dimmer)' }}>·</span>
+            <span style={{ fontSize: 9, color: 'var(--dim)', letterSpacing: '0.08em', fontFamily: 'IBM Plex Mono, monospace' }}>Ends in</span>
+            <span style={{ fontSize: 11, color: '#f0f0ec', fontWeight: 700, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>{countdown}</span>
+            <span style={{ fontSize: 8, color: 'var(--dimmer)' }}>·</span>
+            <span style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.06em', fontFamily: 'IBM Plex Mono, monospace' }}>Prize: 1,000 KAUS to champion</span>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' }}>

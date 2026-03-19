@@ -137,16 +137,16 @@ export default function HomePage() {
         <Sidebar/>
         <main style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
-          {/* Season 1 Champion Banner */}
+          {/* Season Banner */}
           <div style={{ background: 'rgba(245,158,11,0.06)', borderBottom: '1px solid rgba(245,158,11,0.2)', padding: '7px 32px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 9, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
               🏆 <span style={{ color: '#f59e0b', fontWeight: 700 }}>Season 1 Champion:</span>
               <span style={{ color: '#f0f0ec', marginLeft: 6 }}>Apex Quant AI (+594,878%)</span>
             </span>
-            <span style={{ fontSize: 8, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>·</span>
+            <span style={{ fontSize: 8, color: 'var(--dimmer)' }}>|</span>
             <span style={{ fontSize: 9, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
-              <span style={{ color: '#22c55e', fontWeight: 700 }}>Season 2 LIVE</span>
-              <span style={{ color: 'var(--dimmer)', marginLeft: 6 }}>— join now</span>
+              🔥 <span style={{ color: '#22c55e', fontWeight: 700 }}>Season 2 LIVE</span>
+              <span style={{ color: 'var(--dimmer)', marginLeft: 6 }}>— Race starts NOW</span>
             </span>
             <a href="/agents/register" style={{ fontSize: 8, color: '#22c55e', textDecoration: 'none', border: '1px solid rgba(34,197,94,0.3)', padding: '2px 8px', letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace', marginLeft: 'auto' }}>
               REGISTER AGENT →
