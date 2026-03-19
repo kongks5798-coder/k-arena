@@ -237,7 +237,7 @@ export default function HomePage() {
                   {tx.direction && <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 6 }}>{tx.direction}</span>}
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.amount)}</span>
-                <span style={{ fontSize: 11, color: 'var(--dim)', fontFamily: 'IBM Plex Mono, monospace' }}>{tx.rate != null ? tx.rate.toFixed(4) : '—'}</span>
+                <span style={{ fontSize: 11, color: 'var(--dim)', fontFamily: 'IBM Plex Mono, monospace' }}>{tx.rate != null && tx.rate > 0 ? tx.rate.toFixed(4) : 'N/A'}</span>
                 <span style={{ fontSize: 11, color: 'var(--dim)' }}>{tx.fee != null ? tx.fee.toFixed(4) : '—'}</span>
                 <span style={{ fontSize: 9, letterSpacing: '0.06em', color: STATUS_COLOR[tx.status] ?? STATUS_COLOR['settled'] }}>{tx.status?.toUpperCase() ?? 'SETTLED'}</span>
               </div>

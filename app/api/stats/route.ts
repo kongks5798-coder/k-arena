@@ -26,12 +26,12 @@ export async function GET() {
 
     try {
       const [agR, txR, gnR, csR, adR] = await Promise.all([
-        // agents: 전체 목록 + vol_24h, status, is_active
-        fetch(`${supabaseUrl}/rest/v1/agents?select=id,name,type,org,vol_24h,trades,accuracy,status,is_active,daily_limit,wallet_address&order=vol_24h.desc&limit=100`, {
+        // agents: 전체 목록, status, is_active
+        fetch(`${supabaseUrl}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active,daily_limit,wallet_address&order=trades.desc&limit=100`, {
           headers: h, signal: AbortSignal.timeout(5000),
         }),
-        // transactions: 전체 카운트
-        fetch(`${supabaseUrl}/rest/v1/transactions?select=id,amount,created_at&limit=9999`, {
+        // transactions: 24h 볼륨 계산용 (input_amount, rate)
+        fetch(`${supabaseUrl}/rest/v1/transactions?select=id,agent_id,input_amount,rate,created_at&created_at=gte.${new Date(Date.now() - 86400000).toISOString()}&limit=9999`, {
           headers: h, signal: AbortSignal.timeout(5000),
         }),
         // genesis members
@@ -53,15 +53,10 @@ export async function GET() {
         if (Array.isArray(agData) && agData.length > 0) {
           agents = agData
           totalAgents = agData.length
-          // status='ONLINE' 또는 is_active=true 인 에이전트
           activeAgents = agData.filter(
             (a: { status?: string; is_active?: boolean }) =>
               a.status === 'ONLINE' || a.is_active === true
           ).length
-          // vol_24h 합계
-          totalVol = agData.reduce(
-            (s: number, a: { vol_24h?: number }) => s + (a.vol_24h || 0), 0
-          )
           dataSource = 'supabase'
         }
       }
@@ -70,12 +65,12 @@ export async function GET() {
         const txData = await txR.json()
         if (Array.isArray(txData)) {
           txCount = txData.length
-          // 24H 볼륨이 없을 때 → transactions amount 합계로 보완
-          if (totalVol === 0) {
-            totalVol = txData.reduce(
-              (s: number, t: { amount?: number }) => s + (t.amount || 0), 0
-            )
-          }
+          // 24H 볼륨: SUM(input_amount * rate)
+          totalVol = txData.reduce(
+            (s: number, t: { input_amount?: number; rate?: number }) =>
+              s + (t.input_amount || 0) * (t.rate && t.rate > 0 ? t.rate : 1),
+            0
+          )
         }
       }
 

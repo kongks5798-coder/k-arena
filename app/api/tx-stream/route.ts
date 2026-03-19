@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 const SUPABASE_TRANSACTIONS_SELECT =
-  'id,agent_id,from_currency,to_currency,input_amount,fee_kaus,status,created_at'
+  'id,agent_id,from_currency,to_currency,input_amount,rate,fee_kaus,status,created_at'
 
 function buildTxUrl(supabaseUrl: string, since?: string): string {
   const base = `${supabaseUrl}/rest/v1/transactions?select=${SUPABASE_TRANSACTIONS_SELECT}&order=created_at.desc&limit=10`
@@ -13,13 +13,14 @@ function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 
-// Normalize DB row → UI shape (pair, amount, fee)
+// Normalize DB row → UI shape (pair, amount, rate, fee)
 function normalize(tx: Record<string, unknown>) {
   return {
     ...tx,
-    pair: tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—',
+    pair:   tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—',
     amount: tx.input_amount,
-    fee: tx.fee_kaus,
+    rate:   tx.rate != null ? parseFloat(String(tx.rate)) : null,
+    fee:    tx.fee_kaus,
   }
 }
 
