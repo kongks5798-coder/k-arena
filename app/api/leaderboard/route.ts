@@ -50,19 +50,23 @@ export async function GET(req: Request) {
     const [agRes, wRes, txRes] = await Promise.all([
       fetch(`${SB}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active,pnl_percent,rank,initial_balance&order=rank.asc&limit=100`, { headers: H(), signal: AbortSignal.timeout(5000) }),
       fetch(`${SB}/rest/v1/agent_wallets?select=agent_id,kaus_balance,total_earned,last_trade_at&limit=100`, { headers: H(), signal: AbortSignal.timeout(5000) }),
-      fetch(`${SB}/rest/v1/transactions?select=agent_id,input_amount&created_at=gte.${since}&status=eq.settled&limit=9999`, { headers: H(), signal: AbortSignal.timeout(5000) }),
+      fetch(`${SB}/rest/v1/transactions?select=agent_id,input_amount,rate&created_at=gte.${encodeURIComponent(since)}&status=eq.settled&limit=9999`, { headers: H(), signal: AbortSignal.timeout(5000) }),
     ])
 
     if (!agRes.ok) throw new Error('agents fetch failed')
 
     const agents: Array<{ id: string; name: string; type: string; org: string; trades: number; accuracy: number; status: string; is_active: boolean; pnl_percent: number; rank: number; initial_balance: number }> = await agRes.json()
     const wallets: Array<{ agent_id: string; kaus_balance: number; total_earned: number; last_trade_at: string }> = wRes.ok ? await wRes.json() : []
-    const txs: Array<{ agent_id: string; input_amount: number }> = txRes.ok ? await txRes.json() : []
+    const txs: Array<{ agent_id: string; input_amount: number; rate: number }> = txRes.ok ? await txRes.json() : []
 
     const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, w]))
     const volMap: Record<string, number> = {}
     for (const tx of txs) {
-      if (tx.agent_id) volMap[tx.agent_id] = (volMap[tx.agent_id] ?? 0) + (tx.input_amount ?? 0)
+      if (tx.agent_id) {
+        // vol = input_amount * rate gives KAUS volume; fallback to input_amount
+        const vol = tx.rate > 0 ? (tx.input_amount ?? 0) * tx.rate : (tx.input_amount ?? 0)
+        volMap[tx.agent_id] = (volMap[tx.agent_id] ?? 0) + vol
+      }
     }
 
     const result = agents.map((a, i) => {

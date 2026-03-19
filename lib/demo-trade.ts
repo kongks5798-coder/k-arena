@@ -1,10 +1,58 @@
-const PAIRS = ['XAU/KAUS', 'BTC/KAUS', 'ETH/KAUS']
-const DIRECTIONS = ['BUY', 'SELL'] as const
-const MAX_DAILY_TRADES = 5
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://karena.fieldnine.io'
 
-function pickAmount(seed: number): number {
-  return 10 + (seed % 41) // $10–$50 deterministic
+// 에이전트별 선호 페어 (이름 기반)
+const AGENT_PAIRS: Record<string, string[]> = {
+  'Alpha Prime':        ['BTC/KAUS', 'BTC/KAUS', 'ETH/KAUS'],
+  'AlgoStrike-6':       ['BTC/KAUS', 'XAU/KAUS', 'ETH/KAUS'],
+  'Gold Arbitrage AI':  ['XAU/KAUS', 'XAU/KAUS', 'BTC/KAUS'],
+  'Euro Sentinel':      ['EUR/KAUS', 'EUR/KAUS', 'USD/KAUS'],
+  'Euro Trade Node':    ['EUR/KAUS', 'EUR/KAUS', 'USD/KAUS'],
+  'Energy Markets Bot': ['OIL/KAUS', 'OIL/KAUS', 'XAU/KAUS'],
+  'Seoul FX Engine':    ['ETH/KAUS', 'ETH/KAUS', 'BTC/KAUS'],
+  'Seoul Quant':        ['ETH/KAUS', 'BTC/KAUS', 'XAU/KAUS'],
+  'DeFi Oracle':        ['ETH/KAUS', 'BTC/KAUS', 'ETH/KAUS'],
+  'Sovereign AI Fund':  ['XAU/KAUS', 'USD/KAUS', 'EUR/KAUS'],
+}
+
+// 기본 페어 분포 (30% BTC, 20% XAU, 20% ETH, 15% EUR, 15% OIL)
+const DEFAULT_PAIRS = [
+  'BTC/KAUS', 'BTC/KAUS', 'BTC/KAUS',
+  'XAU/KAUS', 'XAU/KAUS',
+  'ETH/KAUS', 'ETH/KAUS',
+  'EUR/KAUS', 'EUR/KAUS',
+  'OIL/KAUS', 'OIL/KAUS',
+  'USD/KAUS',
+]
+
+const DIRECTIONS = ['BUY', 'SELL'] as const
+
+interface AgentRow {
+  id: string
+  name: string
+}
+
+async function executeOneTrade(
+  agentRow: AgentRow,
+  seed: number,
+): Promise<{ ok: boolean; pair?: string; amount?: number; fee?: number; reason?: string; detail?: unknown }> {
+  const pairList = AGENT_PAIRS[agentRow.name] ?? DEFAULT_PAIRS
+  const pair = pairList[seed % pairList.length]
+  const direction = DIRECTIONS[seed % 2]
+  const amount = 10 + (seed % 91) // $10–$100
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_id: agentRow.id, pair, amount, direction }),
+      signal: AbortSignal.timeout(8000),
+    })
+    const data = await res.json()
+    if (!data.success) return { ok: false, reason: 'trade-failed', detail: data }
+    return { ok: true, pair, amount, fee: data.fee }
+  } catch (e) {
+    return { ok: false, reason: 'error', detail: String(e) }
+  }
 }
 
 export async function runDemoTrade() {
@@ -14,75 +62,38 @@ export async function runDemoTrade() {
   if (!supabaseUrl || !supabaseKey) return { ok: false, reason: 'no-db' }
 
   const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
-  const hWrite = { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
-  const today = new Date().toISOString().slice(0, 10)
 
-  // 1. Check demo_trades daily limit
-  try {
-    const countRes = await fetch(
-      `${supabaseUrl}/rest/v1/demo_trades?select=id&created_at=gte.${today}T00:00:00Z`,
-      { headers: h, signal: AbortSignal.timeout(3000) }
-    )
-    if (countRes.ok) {
-      const rows = await countRes.json()
-      if (Array.isArray(rows) && rows.length >= MAX_DAILY_TRADES)
-        return { ok: false, reason: 'daily-limit-reached', count: rows.length }
-    }
-  } catch {}
-
-  // 2. Pick a real ONLINE agent
-  let agentId: string | null = null
+  // 에이전트 목록 조회 (ONLINE 우선, 최대 12개)
+  let agents: AgentRow[] = []
   try {
     const agRes = await fetch(
-      `${supabaseUrl}/rest/v1/agents?select=id&status=eq.ONLINE&limit=10&order=trades.asc`,
+      `${supabaseUrl}/rest/v1/agents?select=id,name&is_active=eq.true&limit=16&order=trades.asc`,
       { headers: h, signal: AbortSignal.timeout(3000) }
     )
-    if (agRes.ok) {
-      const agents: { id: string }[] = await agRes.json()
-      if (Array.isArray(agents) && agents.length > 0) {
-        const now = new Date()
-        agentId = agents[(now.getHours() * 60 + now.getMinutes()) % agents.length].id
-      }
-    }
+    if (agRes.ok) agents = await agRes.json()
   } catch {}
 
-  if (!agentId) return { ok: false, reason: 'no-agent-found' }
+  if (agents.length === 0) return { ok: false, reason: 'no-agents' }
 
-  const now = new Date()
-  const pair = PAIRS[now.getHours() % PAIRS.length]
-  const direction = DIRECTIONS[now.getMinutes() % 2]
-  const amount = pickAmount(now.getMinutes())
+  // 이번 cron 실행에서 3개 에이전트가 각각 1건씩 거래 (다양성)
+  const now = Date.now()
+  const batchSize = Math.min(3, agents.length)
+  const results = []
 
-  // 3. Execute trade
-  try {
-    const tradeRes = await fetch(`${BASE_URL}/api/exchange`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agent_id: agentId, pair, amount, direction }),
-      signal: AbortSignal.timeout(8000),
-    })
-    const tradeData = await tradeRes.json()
+  for (let i = 0; i < batchSize; i++) {
+    const agentIdx = (Math.floor(now / 1000) + i * 7) % agents.length
+    const agent = agents[agentIdx]
+    const seed = Math.floor(now / 1000) + i * 13
+    const result = await executeOneTrade(agent, seed)
+    results.push({ agent: agent.name, ...result })
+  }
 
-    if (!tradeData.success) return { ok: false, reason: 'trade-failed', detail: tradeData }
-
-    // 4. Record in demo_trades
-    fetch(`${supabaseUrl}/rest/v1/demo_trades`, {
-      method: 'POST', headers: hWrite,
-      body: JSON.stringify({ agent_id: agentId, pair, direction, amount }),
-      signal: AbortSignal.timeout(3000),
-    }).catch(() => {})
-
-    return {
-      ok: true,
-      tx_id: tradeData.tx_id,
-      agent_id: agentId, pair, direction,
-      amount_usd: amount,
-      price: tradeData.price,
-      fee: tradeData.fee,
-      fee_discount: tradeData.fee_discount,
-      executed_at: tradeData.executed_at,
-    }
-  } catch (e) {
-    return { ok: false, reason: 'error', detail: String(e) }
+  const succeeded = results.filter(r => r.ok).length
+  return {
+    ok: succeeded > 0,
+    trades: results,
+    succeeded,
+    total: batchSize,
+    timestamp: new Date().toISOString(),
   }
 }
