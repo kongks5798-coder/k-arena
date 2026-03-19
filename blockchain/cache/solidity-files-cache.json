@@ -2,11 +2,11 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\kongk\\k-arena\\blockchain\\contracts\\KAUSToken.sol": {
-      "lastModificationDate": 1773714316528,
+      "lastModificationDate": 1773767344716,
       "contentHash": "9c0e96879245de4c7d054cf8daa573cb",
       "sourceName": "contracts/KAUSToken.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -48,7 +48,7 @@
       "contentHash": "d15c4d05583536e080f1960ab282772d",
       "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -89,7 +89,7 @@
       "contentHash": "798a29e3c30dbd3eda1a67add26571e2",
       "sourceName": "@openzeppelin/contracts/access/AccessControl.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -129,7 +129,7 @@
       "contentHash": "a3ce035689a60e32921347c16a3fb786",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -168,7 +168,7 @@
       "contentHash": "a5e78bb1708ef493e3f0a03c633d3911",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -210,7 +210,7 @@
       "contentHash": "273d8d24b06f67207dd5f35c3a0c1086",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -249,7 +249,7 @@
       "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
       "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -287,7 +287,7 @@
       "contentHash": "9261adf6457863de3e9892f51317ec89",
       "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -323,7 +323,7 @@
       "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -359,7 +359,7 @@
       "contentHash": "513778b30d2750f5d2b9b19bbcf748a5",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -397,7 +397,7 @@
       "contentHash": "def1e8f7b6cac577cf2600655bf3bdf8",
       "sourceName": "@openzeppelin/contracts/access/IAccessControl.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -433,7 +433,7 @@
       "contentHash": "0906d06dca25210d4696dcef6dad2909",
       "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -471,7 +471,7 @@
       "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
       "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -507,7 +507,7 @@
       "contentHash": "0d47b53e10b1985efbb396f937626279",
       "sourceName": "@openzeppelin/contracts/utils/Pausable.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -545,7 +545,7 @@
       "contentHash": "c32d108058718efb9061b88e83a83f79",
       "sourceName": "@openzeppelin/contracts/utils/Nonces.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -581,7 +581,7 @@
       "contentHash": "1351802e3aa364e90aacf03f65b78176",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -621,7 +621,7 @@
       "contentHash": "b038f3665d2262af34fe6009e3cd78dd",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -657,7 +657,7 @@
       "contentHash": "274b0eacbd66ff78b8f749cd8105bab0",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -693,7 +693,7 @@
       "contentHash": "6e00d2fe4bc0d5f1add753824498bb35",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC5267.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -729,7 +729,7 @@
       "contentHash": "193937821a0ace7308133b4c68f6b9be",
       "sourceName": "@openzeppelin/contracts/utils/ShortStrings.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -767,7 +767,7 @@
       "contentHash": "fab97298382d4c32182a66ec35255b71",
       "sourceName": "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -805,7 +805,7 @@
       "contentHash": "e656d64c4ce918f3d13030b91c935134",
       "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -841,7 +841,7 @@
       "contentHash": "d2fa243e766a193585b7e9bf36898d80",
       "sourceName": "@openzeppelin/contracts/utils/Strings.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -882,7 +882,7 @@
       "contentHash": "f28a38cd37f4225d0a91fb5405dd850f",
       "sourceName": "@openzeppelin/contracts/utils/math/SafeCast.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -918,7 +918,7 @@
       "contentHash": "3b32ea3a40a2d708f61e7161f081ca93",
       "sourceName": "@openzeppelin/contracts/utils/Bytes.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -956,7 +956,7 @@
       "contentHash": "5b8c6935ac52b7494df19d6feb38f5cc",
       "sourceName": "@openzeppelin/contracts/utils/math/Math.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -995,7 +995,7 @@
       "contentHash": "ae3528afb8bdb0a7dcfba5b115ee8074",
       "sourceName": "@openzeppelin/contracts/utils/math/SignedMath.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
@@ -1033,7 +1033,7 @@
       "contentHash": "2133dc13536b4a6a98131e431fac59e1",
       "sourceName": "@openzeppelin/contracts/utils/Panic.sol",
       "solcConfig": {
-        "version": "0.8.28",
+        "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
