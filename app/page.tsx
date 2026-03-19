@@ -402,7 +402,7 @@ export default function HomePage() {
               <div style={{ fontSize: 11, color: 'var(--dim)' }}>Discuss strategies, share results, get early access to new features.</div>
             </div>
             <a
-              href="https://discord.gg/k-arena"
+              href="https://discord.gg/gMgv9xua"
               target="_blank"
               rel="noopener noreferrer"
               style={{
