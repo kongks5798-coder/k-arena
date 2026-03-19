@@ -10,7 +10,7 @@ const NAV = [
   ]},
   { group: '// community', items: [
     { href: '/agents',      label: 'agent.register()',    badge: '' },
-    { href: '/community',   label: 'signal.hub',          badge: '' },
+    { href: '/community',   label: 'signal.hub',          badge: 'DOT' },
     { href: '/battle',      label: 'battle.arena()',      badge: '' },
     { href: '/tournament',  label: 'tournament[]',        badge: 'NEW' },
     { href: '/stake',       label: 'kaus.stake()',        badge: '' },
@@ -70,7 +70,7 @@ const SYS = [
   ['DB',      'CONNECTED'],
 ]
 
-function SidebarContent({ pathname }: { pathname: string }) {
+function SidebarContent({ pathname, hasNewComments }: { pathname: string; hasNewComments: boolean }) {
   return (
     <>
       {NAV.map(g => (
@@ -78,12 +78,23 @@ function SidebarContent({ pathname }: { pathname: string }) {
           <div style={S.groupLabel}>{g.group}</div>
           {g.items.map(item => {
             const active = pathname === item.href
+            const isDot = item.badge === 'DOT'
             return (
               <Link key={item.href} href={item.href} style={S.navItem(active)}>
                 <span style={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}>
                   {active ? '▸ ' : '  '}{item.label}
                 </span>
-                {item.badge && <span style={S.badge(active)}>{item.badge}</span>}
+                {isDot ? (
+                  hasNewComments ? (
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: '#ef4444', flexShrink: 0,
+                      boxShadow: '0 0 6px #ef4444',
+                    }} />
+                  ) : null
+                ) : (
+                  item.badge && <span style={S.badge(active)}>{item.badge}</span>
+                )}
               </Link>
             )
           })}
@@ -126,12 +137,29 @@ export function Sidebar() {
   const pathname = usePathname()
   const [mobile, setMobile] = useState(false)
   const [open, setOpen] = useState(false)
+  const [hasNewComments, setHasNewComments] = useState(false)
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth < 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Poll for new comments to show red dot on signal.hub
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/comments?recent=1h')
+        if (r.ok) {
+          const d = await r.json()
+          setHasNewComments(!!d.has_new)
+        }
+      } catch {}
+    }
+    poll()
+    const t = setInterval(poll, 30000)
+    return () => clearInterval(t)
   }, [])
 
   // Close on route change
@@ -178,7 +206,7 @@ export function Sidebar() {
           transition: 'transform 0.2s ease',
           boxShadow: open ? '4px 0 24px rgba(0,0,0,0.5)' : 'none',
         }}>
-          <SidebarContent pathname={pathname} />
+          <SidebarContent pathname={pathname} hasNewComments={hasNewComments} />
         </aside>
       </>
     )
@@ -186,7 +214,7 @@ export function Sidebar() {
 
   return (
     <aside style={S.aside}>
-      <SidebarContent pathname={pathname} />
+      <SidebarContent pathname={pathname} hasNewComments={hasNewComments} />
     </aside>
   )
 }
