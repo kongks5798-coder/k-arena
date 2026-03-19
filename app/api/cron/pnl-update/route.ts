@@ -17,23 +17,22 @@ export async function GET(req: Request) {
   try {
     // 1. 모든 에이전트 + 지갑 잔액
     const [agRes, wRes] = await Promise.all([
-      fetch(`${SB}/rest/v1/agents?select=id,initial_balance&limit=200`, { headers: H(), signal: AbortSignal.timeout(5000) }),
+      fetch(`${SB}/rest/v1/agents?select=id&limit=200`, { headers: H(), signal: AbortSignal.timeout(5000) }),
       fetch(`${SB}/rest/v1/agent_wallets?select=agent_id,kaus_balance&limit=200`, { headers: H(), signal: AbortSignal.timeout(5000) }),
     ])
 
     if (!agRes.ok || !wRes.ok) return NextResponse.json({ ok: false, reason: 'db-error' })
 
-    const agents: { id: string; initial_balance: number }[] = await agRes.json()
+    const agents: { id: string }[] = await agRes.json()
     const wallets: { agent_id: string; kaus_balance: number }[] = await wRes.json()
 
-    const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, w.kaus_balance]))
+    const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, parseFloat(String(w.kaus_balance))]))
 
-    // 2. PnL 계산 + 랭킹 정렬
+    // 2. PnL 계산: ROUND(((kaus_balance - 100) / 100.0) * 100, 2) + 잔액 DESC 랭킹
     const ranked = agents
       .map(a => {
         const bal = walletMap[a.id] ?? 100
-        const init = a.initial_balance ?? 100
-        const pnl = init > 0 ? parseFloat(((bal - init) / init * 100).toFixed(2)) : 0
+        const pnl = parseFloat(((bal - 100) / 100.0 * 100).toFixed(2))
         return { id: a.id, bal, pnl }
       })
       .sort((a, b) => b.bal - a.bal)
