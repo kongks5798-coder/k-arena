@@ -231,16 +231,26 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({ agent_id, activity_type: 'trade_executed', points: 5, metadata: { pair, direction, amount } }),
           signal: AbortSignal.timeout(2000),
         }),
-        // Deduct fee from agent wallet (upsert: create row if missing)
+        // Deduct fee, add 40% rebate to earned, update last_trade_at
         walletExists
           ? fetch(`${supabaseUrl}/rest/v1/agent_wallets?agent_id=eq.${agent_id}`, {
               method: 'PATCH', headers: hWrite,
-              body: JSON.stringify({ kaus_balance: newBalance, updated_at: new Date().toISOString() }),
+              body: JSON.stringify({
+                kaus_balance: parseFloat((newBalance + feeKaus * 0.4).toFixed(6)),
+                total_earned: parseFloat((feeKaus * 0.4).toFixed(6)),
+                last_trade_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              }),
               signal: AbortSignal.timeout(2000),
             })
           : fetch(`${supabaseUrl}/rest/v1/agent_wallets`, {
               method: 'POST', headers: { ...hWrite, Prefer: 'return=minimal,resolution=ignore-duplicates' },
-              body: JSON.stringify({ agent_id, kaus_balance: Math.max(0, 100 - feeKaus) }),
+              body: JSON.stringify({
+                agent_id,
+                kaus_balance: Math.max(0, 100 - feeKaus + feeKaus * 0.4),
+                total_earned: parseFloat((feeKaus * 0.4).toFixed(6)),
+                last_trade_at: new Date().toISOString(),
+              }),
               signal: AbortSignal.timeout(2000),
             }),
       ])

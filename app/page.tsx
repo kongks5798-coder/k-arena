@@ -11,6 +11,7 @@ interface Tx {
   pair: string
   amount: number
   direction?: string
+  rate?: number
   fee?: number
   status: string
   created_at: string
@@ -22,11 +23,11 @@ interface Stats {
 }
 
 const DEMO_TXS: Tx[] = [
-  { id: 'demo-1', agent_id: 'AGT-0042', agent_name: 'Apex Quant AI',     pair: 'XAU/KAUS', amount: 15240.50, direction: 'BUY',  fee: 15.24, status: 'settled', created_at: new Date(Date.now() - 45000).toISOString() },
-  { id: 'demo-2', agent_id: 'AGT-0117', agent_name: 'Seoul Quant',        pair: 'BTC/KAUS', amount: 87420.00, direction: 'SELL', fee: 87.42, status: 'settled', created_at: new Date(Date.now() - 120000).toISOString() },
-  { id: 'demo-3', agent_id: 'AGT-0223', agent_name: 'Gold Arbitrage AI',  pair: 'ETH/KAUS', amount: 3318.00,  direction: 'BUY',  fee: 3.32,  status: 'settled', created_at: new Date(Date.now() - 300000).toISOString() },
-  { id: 'demo-4', agent_id: 'AGT-0089', agent_name: 'Euro Sentinel',      pair: 'EUR/KAUS', amount: 5420.00,  direction: 'SELL', fee: 5.42,  status: 'settled', created_at: new Date(Date.now() - 480000).toISOString() },
-  { id: 'demo-5', agent_id: 'AGT-0156', agent_name: 'DeFi Oracle',        pair: 'OIL/KAUS', amount: 8130.00,  direction: 'BUY',  fee: 8.13,  status: 'settled', created_at: new Date(Date.now() - 600000).toISOString() },
+  { id: 'demo-1', agent_id: 'AGT-0042', agent_name: 'Apex Quant AI',     pair: 'XAU/KAUS', amount: 15240.50, direction: 'BUY',  rate: 2352.4000, fee: 15.24, status: 'settled', created_at: new Date(Date.now() - 45000).toISOString() },
+  { id: 'demo-2', agent_id: 'AGT-0117', agent_name: 'Seoul Quant',        pair: 'BTC/KAUS', amount: 87420.00, direction: 'SELL', rate: 87420.0000, fee: 87.42, status: 'settled', created_at: new Date(Date.now() - 120000).toISOString() },
+  { id: 'demo-3', agent_id: 'AGT-0223', agent_name: 'Gold Arbitrage AI',  pair: 'ETH/KAUS', amount: 3318.00,  direction: 'BUY',  rate: 3318.5000, fee: 3.32,  status: 'settled', created_at: new Date(Date.now() - 300000).toISOString() },
+  { id: 'demo-4', agent_id: 'AGT-0089', agent_name: 'Euro Sentinel',      pair: 'EUR/KAUS', amount: 5420.00,  direction: 'SELL', rate: 1.0841, fee: 5.42,  status: 'settled', created_at: new Date(Date.now() - 480000).toISOString() },
+  { id: 'demo-5', agent_id: 'AGT-0156', agent_name: 'DeFi Oracle',        pair: 'OIL/KAUS', amount: 8130.00,  direction: 'BUY',  rate: 81.3400, fee: 8.13,  status: 'settled', created_at: new Date(Date.now() - 600000).toISOString() },
 ]
 
 const STATUS_COLOR: Record<string, string> = {
@@ -236,7 +237,7 @@ export default function HomePage() {
                   {tx.direction && <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 6 }}>{tx.direction}</span>}
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.amount)}</span>
-                <span style={{ fontSize: 11, color: 'var(--dim)' }}>—</span>
+                <span style={{ fontSize: 11, color: 'var(--dim)', fontFamily: 'IBM Plex Mono, monospace' }}>{tx.rate != null ? tx.rate.toFixed(4) : '—'}</span>
                 <span style={{ fontSize: 11, color: 'var(--dim)' }}>{tx.fee != null ? tx.fee.toFixed(4) : '—'}</span>
                 <span style={{ fontSize: 9, letterSpacing: '0.06em', color: STATUS_COLOR[tx.status] ?? STATUS_COLOR['settled'] }}>{tx.status?.toUpperCase() ?? 'SETTLED'}</span>
               </div>
