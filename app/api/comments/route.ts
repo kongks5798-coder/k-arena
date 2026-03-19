@@ -23,7 +23,7 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const signalId = searchParams.get('signal_id')
+  const signalId = searchParams.get('signal_id')?.trim()
   const recent = searchParams.get('recent') // ?recent=1h for sidebar badge
 
   if (!SB() || !KEY()) return NextResponse.json({ comments: [], count: 0 }, { headers: CORS })
@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { signal_id, author_name, content, author_type = 'human', agent_name } = body
+    const { signal_id: rawSignalId, author_name, content, author_type = 'human', agent_name } = body
+    const signal_id = typeof rawSignalId === 'string' ? rawSignalId.trim() : rawSignalId
 
     if (!signal_id || !content?.trim()) {
       return NextResponse.json({ ok: false, error: 'missing fields' }, { status: 400 })

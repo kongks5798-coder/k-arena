@@ -48,7 +48,7 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
       } catch { /* silent */ }
     }
     fetchTopPnl()
-    intervalRef.current = setInterval(fetchTopPnl, 3 * 60 * 1000)
+    intervalRef.current = setInterval(fetchTopPnl, 30 * 1000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [])
 

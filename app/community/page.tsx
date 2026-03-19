@@ -417,7 +417,7 @@ export default function CommunityPage() {
   const fetchSignals = useCallback(async () => {
     setSigLoading(true)
     try {
-      const params = new URLSearchParams({ limit: '50' })
+      const params = new URLSearchParams({ limit: '200' })
       if (typeFilter !== 'ALL') params.set('type', typeFilter)
       const r = await fetch('/api/signals?' + params)
       if (r.ok) {
