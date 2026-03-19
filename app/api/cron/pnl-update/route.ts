@@ -4,8 +4,6 @@ export const dynamic = 'force-dynamic'
 
 const SB  = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY ?? ''
-const H   = () => ({ apikey: KEY, Authorization: `Bearer ${KEY}` })
-const HW  = () => ({ ...H(), 'Content-Type': 'application/json', Prefer: 'return=minimal' })
 
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization')
@@ -14,51 +12,63 @@ export async function GET(req: Request) {
   }
   if (!SB || !KEY) return NextResponse.json({ ok: false, reason: 'no-db' })
 
+  const h = {
+    apikey: KEY,
+    Authorization: `Bearer ${KEY}`,
+    'Content-Type': 'application/json',
+  }
+
   try {
-    // 1. 모든 에이전트 + 지갑 잔액
-    const [agRes, wRes] = await Promise.all([
-      fetch(`${SB}/rest/v1/agents?select=id&limit=200`, { headers: H(), signal: AbortSignal.timeout(5000) }),
-      fetch(`${SB}/rest/v1/agent_wallets?select=agent_id,kaus_balance&limit=200`, { headers: H(), signal: AbortSignal.timeout(5000) }),
-    ])
+    // 1. RPC: update_pnl_rankings() — SECURITY DEFINER로 anon key도 실행 가능
+    const rpcRes = await fetch(`${SB}/rest/v1/rpc/update_pnl_rankings`, {
+      method: 'POST',
+      headers: h,
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(8000),
+    })
 
-    if (!agRes.ok || !wRes.ok) return NextResponse.json({ ok: false, reason: 'db-error' })
-
-    const agents: { id: string }[] = await agRes.json()
-    const wallets: { agent_id: string; kaus_balance: number }[] = await wRes.json()
-
-    const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, parseFloat(String(w.kaus_balance))]))
-
-    // 2. PnL 계산: ROUND(((kaus_balance - 100) / 100.0) * 100, 2) + 잔액 DESC 랭킹
-    const ranked = agents
-      .map(a => {
-        const bal = walletMap[a.id] ?? 100
-        const pnl = parseFloat(((bal - 100) / 100.0 * 100).toFixed(2))
-        return { id: a.id, bal, pnl }
-      })
-      .sort((a, b) => b.bal - a.bal)
-
-    // 3. 업데이트 (parallel, 5개씩 배치)
     const now = new Date().toISOString()
-    const updates = ranked.map((a, i) =>
-      fetch(`${SB}/rest/v1/agents?id=eq.${a.id}`, {
-        method: 'PATCH', headers: HW(),
-        body: JSON.stringify({ pnl_percent: a.pnl, rank: i + 1 }),
-        signal: AbortSignal.timeout(3000),
-      }).catch(() => null)
-    )
-    await Promise.allSettled(updates)
 
-    // 4. PnL 스냅샷 저장
-    const snapshots = ranked.map((a, i) => ({
-      agent_id: a.id, kaus_balance: a.bal, pnl_percent: a.pnl, rank: i + 1, snapshotted_at: now,
-    }))
-    await fetch(`${SB}/rest/v1/pnl_snapshots`, {
-      method: 'POST', headers: HW(),
-      body: JSON.stringify(snapshots),
-      signal: AbortSignal.timeout(5000),
-    }).catch(() => null)
+    if (!rpcRes.ok) {
+      const err = await rpcRes.text()
+      return NextResponse.json({ ok: false, reason: 'rpc-failed', detail: err, timestamp: now })
+    }
 
-    return NextResponse.json({ ok: true, updated: ranked.length, timestamp: now })
+    const rpcData = await rpcRes.json()
+
+    // 2. PnL 스냅샷 저장 (선택적)
+    try {
+      const [agRes, wRes] = await Promise.all([
+        fetch(`${SB}/rest/v1/agents?select=id,rank&limit=200`, { headers: h, signal: AbortSignal.timeout(4000) }),
+        fetch(`${SB}/rest/v1/agent_wallets?select=agent_id,kaus_balance&limit=200`, { headers: h, signal: AbortSignal.timeout(4000) }),
+      ])
+
+      if (agRes.ok && wRes.ok) {
+        const agents: { id: string; rank: number }[] = await agRes.json()
+        const wallets: { agent_id: string; kaus_balance: number }[] = await wRes.json()
+        const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, parseFloat(String(w.kaus_balance))]))
+
+        const snapshots = agents.map(a => {
+          const bal = walletMap[a.id] ?? 100
+          return {
+            agent_id: a.id,
+            kaus_balance: bal,
+            pnl_percent: parseFloat(((bal - 100) / 100.0 * 100).toFixed(2)),
+            rank: a.rank,
+            snapshotted_at: now,
+          }
+        })
+
+        await fetch(`${SB}/rest/v1/pnl_snapshots`, {
+          method: 'POST',
+          headers: { ...h, Prefer: 'return=minimal' },
+          body: JSON.stringify(snapshots),
+          signal: AbortSignal.timeout(5000),
+        }).catch(() => null)
+      }
+    } catch { /* snapshot optional */ }
+
+    return NextResponse.json({ ok: true, rpc: rpcData, timestamp: now })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) })
   }
