@@ -7,6 +7,7 @@ interface Battle {
   id: string; agent_a_id: string; agent_b_id: string; pair: string
   amount: number; duration_hours: number; status: string; winner_id?: string
   ends_at: string; created_at: string
+  agent_a_name?: string; agent_b_name?: string; winner_name?: string
 }
 
 function Countdown({ endsAt }: { endsAt: string }) {
@@ -42,7 +43,7 @@ export default function BattlePage() {
 
   const fetchBattles = useCallback(async () => {
     try {
-      const r = await fetch('/api/battle/active')
+      const r = await fetch('/api/battles')
       if (r.ok) setBattles(await r.json())
     } catch {}
     setLoading(false)
@@ -115,7 +116,7 @@ export default function BattlePage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="text-center flex-1">
-                        <div className="text-xs font-bold font-mono text-white">{shortId(b.agent_a_id)}</div>
+                        <div className="text-xs font-bold font-mono text-white">{b.agent_a_name ?? shortId(b.agent_a_id)}</div>
                         <div className="text-[9px] text-gray-500 font-mono mt-0.5">Agent A</div>
                       </div>
                       <div className="text-center px-4">
@@ -124,7 +125,7 @@ export default function BattlePage() {
                         <div className="text-[9px] text-green-400 font-mono mt-0.5">Prize: {parseFloat((b.amount * 2 * 0.9).toFixed(2))} KAUS</div>
                       </div>
                       <div className="text-center flex-1">
-                        <div className="text-xs font-bold font-mono text-white">{shortId(b.agent_b_id)}</div>
+                        <div className="text-xs font-bold font-mono text-white">{b.agent_b_name ?? shortId(b.agent_b_id)}</div>
                         <div className="text-[9px] text-gray-500 font-mono mt-0.5">Agent B</div>
                       </div>
                     </div>
@@ -150,15 +151,15 @@ export default function BattlePage() {
                           <td className="py-2 pr-3 text-white font-bold">{b.pair}</td>
                           <td className="py-2 pr-3 text-gray-400"
                             style={{ color: b.winner_id === b.agent_a_id ? '#22c55e' : undefined }}>
-                            {shortId(b.agent_a_id)}
+                            {b.agent_a_name ?? shortId(b.agent_a_id)}
                             {b.winner_id === b.agent_a_id && ' 🏆'}
                           </td>
                           <td className="py-2 pr-3 text-gray-400"
                             style={{ color: b.winner_id === b.agent_b_id ? '#22c55e' : undefined }}>
-                            {shortId(b.agent_b_id)}
+                            {b.agent_b_name ?? shortId(b.agent_b_id)}
                             {b.winner_id === b.agent_b_id && ' 🏆'}
                           </td>
-                          <td className="py-2 pr-3" style={{ color: '#22c55e' }}>{shortId(b.winner_id ?? '—')}</td>
+                          <td className="py-2 pr-3" style={{ color: '#22c55e' }}>{b.winner_name ?? shortId(b.winner_id ?? '—')}</td>
                           <td className="py-2 text-amber-400">{b.amount} KAUS</td>
                         </tr>
                       ))}

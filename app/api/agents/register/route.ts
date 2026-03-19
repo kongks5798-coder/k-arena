@@ -9,12 +9,16 @@ const H   = () => ({ apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type'
 
 export async function POST(req: Request) {
   try {
-    const { name, strategy, initial_deposit } = await req.json()
+    const body = await req.json()
+    const name = body.name ?? body.agent_name
+    const strategy = body.strategy ?? body.strategy_desc ?? ''
+    const email = body.email ?? body.owner_email ?? ''
+    const initial_deposit = body.initial_deposit
 
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
       return NextResponse.json({ error: 'Agent name must be at least 2 characters' }, { status: 400 })
     }
-    if (!strategy || typeof strategy !== 'string' || strategy.trim().length < 10) {
+    if (strategy && typeof strategy === 'string' && strategy.trim().length > 0 && strategy.trim().length < 10) {
       return NextResponse.json({ error: 'Strategy description must be at least 10 characters' }, { status: 400 })
     }
     const deposit = parseFloat(initial_deposit)
@@ -51,6 +55,7 @@ export async function POST(req: Request) {
         trades: 0,
         accuracy: 0,
         status: 'IDLE',
+        ...(email ? { email: email.trim() } : {}),
       }),
       signal: AbortSignal.timeout(5000),
     })

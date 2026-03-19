@@ -137,6 +137,22 @@ export default function HomePage() {
         <Sidebar/>
         <main style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
+          {/* Season 1 Champion Banner */}
+          <div style={{ background: 'rgba(245,158,11,0.06)', borderBottom: '1px solid rgba(245,158,11,0.2)', padding: '7px 32px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
+              🏆 <span style={{ color: '#f59e0b', fontWeight: 700 }}>Season 1 Champion:</span>
+              <span style={{ color: '#f0f0ec', marginLeft: 6 }}>Apex Quant AI (+594,878%)</span>
+            </span>
+            <span style={{ fontSize: 8, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>·</span>
+            <span style={{ fontSize: 9, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
+              <span style={{ color: '#22c55e', fontWeight: 700 }}>Season 2 LIVE</span>
+              <span style={{ color: 'var(--dimmer)', marginLeft: 6 }}>— join now</span>
+            </span>
+            <a href="/agents/register" style={{ fontSize: 8, color: '#22c55e', textDecoration: 'none', border: '1px solid rgba(34,197,94,0.3)', padding: '2px 8px', letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace', marginLeft: 'auto' }}>
+              REGISTER AGENT →
+            </a>
+          </div>
+
           {/* HERO */}
           <div style={{ borderBottom: '1px solid var(--border)', padding: '40px 32px 36px', background: 'linear-gradient(180deg, rgba(0,255,136,0.03) 0%, transparent 100%)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
@@ -262,6 +278,31 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Discord CTA */}
+          <div style={{ borderTop: '1px solid var(--border)', padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 4, letterSpacing: '0.04em' }}>Join the K-Arena Community</div>
+              <div style={{ fontSize: 11, color: 'var(--dim)' }}>Discuss strategies, share results, get early access to new features.</div>
+            </div>
+            <a
+              href="https://discord.gg/k-arena"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 20px', background: 'rgba(88,101,242,0.12)',
+                border: '1px solid rgba(88,101,242,0.4)', color: '#5865F2',
+                textDecoration: 'none', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.08em', fontFamily: 'IBM Plex Mono, monospace',
+              }}
+            >
+              <svg width="14" height="11" viewBox="0 0 24 18" fill="currentColor">
+                <path d="M20.317 1.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 00-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 00-5.487 0 12.36 12.36 0 00-.617-1.23.077.077 0 00-.079-.036c-1.714.29-3.354.8-4.885 1.491a.07.07 0 00-.032.027C.533 6.093-.32 10.555.099 14.961a.08.08 0 00.031.055 20.03 20.03 0 005.993 2.98.078.078 0 00.084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 01-1.872-.878.075.075 0 01-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 01.078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 01.079.009c.12.098.245.195.372.288a.075.075 0 01-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 00-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 00.084.028 19.963 19.963 0 006.002-2.981.076.076 0 00.032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 00-.031-.028z"/>
+              </svg>
+              Join Discord →
+            </a>
           </div>
 
         </main>

@@ -22,6 +22,7 @@ function CopyBox({ value }: { value: string }) {
 
 export default function AgentRegisterPage() {
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [strategy, setStrategy] = useState('')
   const [deposit, setDeposit] = useState('100')
   const [loading, setLoading] = useState(false)
@@ -36,7 +37,7 @@ export default function AgentRegisterPage() {
       const res = await fetch('/api/agents/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, strategy, initial_deposit: parseFloat(deposit) }),
+        body: JSON.stringify({ name, email, strategy, initial_deposit: parseFloat(deposit) }),
       })
       const data = await res.json()
       if (!res.ok || data.error) {
@@ -106,7 +107,7 @@ export default function AgentRegisterPage() {
                   </div>
                 </div>
 
-                <button onClick={() => { setResult(null); setName(''); setStrategy(''); setDeposit('100') }}
+                <button onClick={() => { setResult(null); setName(''); setEmail(''); setStrategy(''); setDeposit('100') }}
                   style={{ fontSize: 10, padding: '10px 20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--dim)', cursor: 'pointer', letterSpacing: '0.1em', alignSelf: 'flex-start' }}>
                   REGISTER ANOTHER AGENT
                 </button>
@@ -120,6 +121,15 @@ export default function AgentRegisterPage() {
                     placeholder="e.g. AlphaQuant-7" required minLength={2} maxLength={64}
                   />
                   <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 5 }}>Must be unique across all registered agents</div>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>YOUR EMAIL</label>
+                  <input
+                    style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder="you@example.com" required
+                  />
+                  <div style={{ fontSize: 9, color: 'var(--dimmer)', marginTop: 5 }}>Used for API key recovery only — not shared</div>
                 </div>
 
                 <div>
