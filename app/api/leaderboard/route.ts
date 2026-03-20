@@ -52,7 +52,7 @@ export async function GET(req: Request) {
   const since = new Date(Date.now() - sinceMs).toISOString()
 
   try {
-    // 1. agents — rank 순 정렬
+    // 1. agents
     const agRes = await fetch(
       `${SB}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active,pnl_percent,rank,initial_balance&order=rank.asc&limit=100`,
       { headers: H(), signal: AbortSignal.timeout(6000) }
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
 
     if (!Array.isArray(agents) || agents.length === 0) return seedResponse(period)
 
-    // 2. wallets — parallel fetch
+    // 2. wallets (optional)
     const wRes = await fetch(
       `${SB}/rest/v1/agent_wallets?select=agent_id,kaus_balance,total_earned,last_trade_at&limit=100`,
       { headers: H(), signal: AbortSignal.timeout(6000) }
@@ -75,52 +75,66 @@ export async function GET(req: Request) {
     const wallets: Array<{ agent_id: string; kaus_balance: number; total_earned: number; last_trade_at: string | null }> =
       wRes.ok ? await wRes.json() : []
 
-    // 3. volume + fee_kaus from transactions (best-effort, no status filter)
-    const volMap:  Record<string, number> = {}
-    const feeMap:  Record<string, number> = {}
+    // 3. Period-filtered transactions for vol_24h
+    const volMap: Record<string, number> = {}
     try {
       const txRes = await fetch(
-        `${SB}/rest/v1/transactions?select=agent_id,input_amount,rate,fee_kaus&created_at=gte.${since}&limit=9999`,
+        `${SB}/rest/v1/transactions?select=agent_id,input_amount,rate&created_at=gte.${since}&limit=9999`,
         { headers: H(), signal: AbortSignal.timeout(5000) }
       )
       if (txRes.ok) {
-        const txs: Array<{ agent_id: string; input_amount: number; rate: number; fee_kaus: number }> = await txRes.json()
+        const txs: Array<{ agent_id: string; input_amount: number; rate: number }> = await txRes.json()
         for (const tx of txs) {
           if (!tx.agent_id) continue
-          const v = (tx.input_amount ?? 0) * (tx.rate > 0 ? tx.rate : 1)
-          volMap[tx.agent_id] = (volMap[tx.agent_id] ?? 0) + v
-          feeMap[tx.agent_id] = (feeMap[tx.agent_id] ?? 0) + (Number(tx.fee_kaus) || 0)
+          volMap[tx.agent_id] = (volMap[tx.agent_id] ?? 0) + (tx.input_amount ?? 0) * (tx.rate > 0 ? tx.rate : 1)
         }
       }
-    } catch { /* vol_24h defaults to 0 */ }
+    } catch { /* vol defaults to 0 */ }
+
+    // 4. ALL-TIME fee_kaus for PnL (not period-filtered)
+    const allTimeFeeMap: Record<string, number> = {}
+    try {
+      const allTxRes = await fetch(
+        `${SB}/rest/v1/transactions?select=agent_id,fee_kaus&limit=9999`,
+        { headers: H(), signal: AbortSignal.timeout(5000) }
+      )
+      if (allTxRes.ok) {
+        const allTxs: Array<{ agent_id: string; fee_kaus: number }> = await allTxRes.json()
+        for (const tx of allTxs) {
+          if (!tx.agent_id) continue
+          allTimeFeeMap[tx.agent_id] = (allTimeFeeMap[tx.agent_id] ?? 0) + (Number(tx.fee_kaus) || 0)
+        }
+      }
+    } catch { /* fall back to 0 */ }
 
     const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, w]))
 
     const result = agents.map((a, i) => {
       const w = walletMap[a.id]
-      const bal   = w ? parseFloat(String(w.kaus_balance)) : 100
-      const init  = a.initial_balance ?? 100
-      // Use DB pnl_percent if non-zero, else derive from accumulated fees
+      const bal  = w ? parseFloat(String(w.kaus_balance)) : 100
+      const init = a.initial_balance ?? 100
       const dbPnl = a.pnl_percent != null ? parseFloat(String(a.pnl_percent)) : null
-      const feePnl = init > 0 ? parseFloat((((feeMap[a.id] ?? 0) / init) * 100).toFixed(2)) : 0
+      // Priority: DB pnl_percent (non-zero) → all-time fee_kaus ratio → wallet diff
+      const totalFee = allTimeFeeMap[a.id] ?? 0
+      const feePnl = init > 0 && totalFee > 0 ? parseFloat(((totalFee / init) * 100).toFixed(2)) : 0
       const walletPnl = init > 0 ? parseFloat(((bal - init) / init * 100).toFixed(2)) : 0
       const pnl = (dbPnl && dbPnl !== 0) ? dbPnl : (feePnl > 0 ? feePnl : walletPnl)
       return {
-        rank:          a.rank || i + 1,
-        name:          a.name,
-        type:          a.type ?? 'AI Trading Agent',
-        org:           a.org ?? 'K-Arena Network',
-        kaus_balance:  bal,
+        rank:           a.rank || i + 1,
+        name:           a.name,
+        type:           a.type ?? 'AI Trading Agent',
+        org:            a.org ?? 'K-Arena Network',
+        kaus_balance:   bal,
         initial_balance: init,
-        pnl_percent:   pnl,
-        total_earned:  w ? parseFloat(String(w.total_earned ?? 0)) : Math.max(0, bal - init),
-        vol_24h:       volMap[a.id] ?? 0,
-        trades:        a.trades ?? 0,
-        accuracy:      a.accuracy ?? 0,
-        status:        a.status ?? (a.is_active ? 'ONLINE' : 'IDLE'),
-        last_trade_at: w?.last_trade_at ?? null,
+        pnl_percent:    pnl,
+        total_earned:   w ? parseFloat(String(w.total_earned ?? 0)) : Math.max(0, totalFee),
+        vol_24h:        volMap[a.id] ?? 0,
+        trades:         a.trades ?? 0,
+        accuracy:       a.accuracy ?? 0,
+        status:         a.status ?? (a.is_active ? 'ONLINE' : 'IDLE'),
+        last_trade_at:  w?.last_trade_at ?? null,
       }
-    }).sort((a, b) => b.kaus_balance - a.kaus_balance)
+    }).sort((a, b) => b.pnl_percent - a.pnl_percent)  // sort by real PnL
       .map((a, i) => ({ ...a, rank: i + 1 }))
 
     return NextResponse.json({

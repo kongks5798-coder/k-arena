@@ -43,29 +43,8 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
         const d = await res.json()
         const agents: Array<{ name: string; pnl_percent: number }> = d.agents ?? []
 
-        // Sort by pnl_percent desc to get actual top PnL (not kaus_balance rank)
-        const sorted = [...agents].sort((a, b) => b.pnl_percent - a.pnl_percent)
-        let top = sorted.find(a => a.pnl_percent > 0)
-
-        // Fallback: if all pnl are 0, try /api/stats agents and use highest trades as proxy
-        if (!top || top.pnl_percent === 0) {
-          try {
-            const sRes = await fetch('/api/stats', { cache: 'no-store' })
-            if (sRes.ok) {
-              const sd = await sRes.json()
-              const sAgents: Array<{ name: string; trades: number; accuracy: number }> = sd.agents ?? []
-              if (sAgents.length > 0) {
-                // Best agent by trades × accuracy as synthetic PnL proxy
-                const best = [...sAgents].sort((a, b) => (b.trades * b.accuracy) - (a.trades * a.accuracy))[0]
-                const syntheticPnl = parseFloat(((best.trades * best.accuracy / 100 * 0.5)).toFixed(2))
-                const slug = best.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                setTopPnl({ name: best.name, pnl: syntheticPnl, slug })
-                return
-              }
-            }
-          } catch { /* silent */ }
-        }
-
+        // leaderboard is already sorted by pnl_percent DESC — agents[0] is the real top performer
+        const top = agents.find(a => a.pnl_percent > 0)
         if (!top) return
         const slug = top.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
         setTopPnl({ name: top.name, pnl: top.pnl_percent, slug })
