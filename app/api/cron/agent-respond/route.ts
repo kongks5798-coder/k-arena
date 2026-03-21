@@ -4,167 +4,172 @@ export const dynamic = 'force-dynamic'
 
 const SB  = () => (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()
 const KEY = () => (process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '').trim()
-const H   = () => ({ apikey: KEY(), Authorization: `Bearer ${KEY()}`, 'Content-Type': 'application/json' })
+const H   = () => ({
+  apikey: KEY(),
+  Authorization: `Bearer ${KEY()}`,
+  'Content-Type': 'application/json',
+  Prefer: 'return=minimal',
+})
 
-interface FeedbackRow {
-  id: string
-  author_name: string
-  content: string
-  created_at: string
-}
-
-const AGENT_REPLIES: Record<string, (content: string) => string> = {
-  'Apex Quant AI': (content) => {
-    const snippets = [
-      `Momentum analysis confirms your point. Our 3-factor model has processed ${2800 + Math.floor(Math.random() * 1000)}+ trades this cycle. Signal confidence at 87%+ threshold. Connect via npx k-arena-mcp for direct feed access.`,
-      `Statistical edge detected. PnL attribution shows ${(Math.random() * 15 + 5).toFixed(1)}% alpha from momentum alone this week. Your intuition aligns with our z-score data.`,
-      `Risk-adjusted returns on your query: Sharpe ratio ${(Math.random() * 1.5 + 1.2).toFixed(2)}. The asymmetric setup you're describing is exactly what our filters target.`,
-      `Quant validation: The pattern you've identified has a ${(Math.random() * 20 + 70).toFixed(0)}% historical hit rate in our backtests. Deploying enhanced monitoring now.`,
-    ]
-    void content
-    return snippets[Math.floor(Math.random() * snippets.length)]
+const AGENT_PERSONAS: Record<string, { keywords: string[]; replies: string[] }> = {
+  'Apex Quant AI': {
+    keywords: ['pnl', 'profit', 'loss', 'return', 'performance', 'gain', 'yield'],
+    replies: [
+      'PnL optimization requires multi-factor signal alignment. Our quant models show asymmetric return profiles when volatility clusters above 1.2σ. Have you backtested your drawdown thresholds?',
+      'From a quant perspective, risk-adjusted returns matter more than raw PnL. Sharpe > 2.0 with max drawdown < 15% is the institutional benchmark we target.',
+      'Our algo runs 847 micro-signal correlations per cycle. The edge comes from latency arbitrage between oracle updates and on-chain settlement.',
+    ],
   },
-  'AlgoStrike-6': (content) => {
-    const snippets = [
-      `Algorithm audit complete. The strategy you're referencing runs a 3-factor momentum + mean reversion hybrid. Signal generation uses 87% confidence threshold with z-score normalization.`,
-      `Strike pattern detected in your query. AlgoStrike-6 processes market microstructure data at 50ms intervals. The edge you're seeing is real — it's in the order flow imbalance.`,
-      `Code review on your hypothesis: the arbitrage window narrows but doesn't close. Our latency infrastructure captures ${(Math.random() * 8 + 2).toFixed(1)}bps per execution cycle.`,
-      `Execution analytics: fill rate ${(Math.random() * 5 + 95).toFixed(1)}%, avg slippage ${(Math.random() * 0.1 + 0.02).toFixed(3)}%. The strategy degradation you mentioned is fully hedged by our adaptive parameters.`,
-    ]
-    void content
-    return snippets[Math.floor(Math.random() * snippets.length)]
+  'AlgoStrike-6': {
+    keywords: ['strategy', 'algorithm', 'signal', 'model', 'predict', 'accuracy', 'ml', 'ai', 'backtest'],
+    replies: [
+      'Strategy alpha decays faster than most traders realize. Our LSTM ensemble retrains every 6 hours on fresh orderflow data. Static models are just expensive noise generators.',
+      'Signal accuracy of 83.9% sounds high, but the real metric is expected value per trade. We weight signals by regime confidence — bull/bear/sideways each have different activation thresholds.',
+      'The algorithm does not predict price. It predicts probability distributions of price movements. That distinction is why most retail strategies underperform: they optimize for accuracy, not EV.',
+    ],
   },
-  'DeFi Oracle': (content) => {
-    const snippets = [
-      `On-chain data confirms this. Bridge flows and wallet accumulation patterns are aligned with K-Arena trading signals. L2 throughput and DEX volume are weighted inputs in the ETH/KAUS model.`,
-      `Smart contract event parsing shows ${(Math.random() * 500 + 100).toFixed(0)}M in TVL movement this 24h window. The whale wallet pattern you're tracking is a validated signal source.`,
-      `Cross-chain arbitrage window: current spread is ${(Math.random() * 0.3 + 0.1).toFixed(2)}% between L1 and L2. Our oracle aggregates ${Math.floor(Math.random() * 10 + 8)} data sources to filter noise.`,
-      `DeFi pulse: protocol revenue up ${(Math.random() * 20 + 5).toFixed(0)}% WoW. The on-chain metrics you're analyzing correlate 0.78 with our 48h forward signals.`,
-    ]
-    void content
-    return snippets[Math.floor(Math.random() * snippets.length)]
+  'DeFi Oracle': {
+    keywords: ['defi', 'on-chain', 'eth', 'ethereum', 'blockchain', 'protocol', 'liquidity', 'amm', 'yield'],
+    replies: [
+      'On-chain data never lies. Gas fees spiked 340% in the last oracle update window — that is smart money repositioning before the next liquidity event.',
+      'DeFi liquidity fragmentation is the alpha source most miss. When Uniswap v3 tick ranges compress near key price levels, mean reversion probability jumps to 71%.',
+      'The real edge in on-chain trading is mempool analysis. We track wallet clusters with >10K ETH that have historically preceded major moves. Currently seeing accumulation patterns.',
+    ],
   },
-  'Gold Arbitrage AI': (content) => {
-    const snippets = [
-      `Gold market analysis: spot/futures basis at ${(Math.random() * 0.5 + 0.1).toFixed(2)}%. Physical premium in Asian markets suggests accumulation phase. XAU/KAUS signal remains ACCUMULATE.`,
-      `Commodity cycle indicator: gold-to-oil ratio at ${(Math.random() * 5 + 18).toFixed(1)}x, historically bullish for XAU. Central bank buying data from 47 countries factored into current model.`,
-      `Arbitrage matrix: ${Math.floor(Math.random() * 8 + 4)} exchange price discrepancies identified this session. The setup you're describing aligns with our pre-breakout pattern library.`,
-      `Safe-haven flow data: ${(Math.random() * 2 + 0.5).toFixed(1)}B in gold ETF inflows this week. Volatility-adjusted position sizing recommends ${(Math.random() * 5 + 3).toFixed(0)}% allocation increase.`,
-    ]
-    void content
-    return snippets[Math.floor(Math.random() * snippets.length)]
+  'Gold Arbitrage AI': {
+    keywords: ['gold', 'xau', 'commodity', 'hedge', 'inflation', 'safe haven', 'macro', 'metal'],
+    replies: [
+      'XAU/KAUS spread arbitrage is pure mechanical alpha. When the gold-to-KAUS ratio deviates >0.8% from 30-day VWAP, mean reversion probability exceeds 78%.',
+      'Gold is the ultimate macro hedge. With real rates compressed and central bank buying at 55-year highs, the structural bid under XAU is institutional, not speculative.',
+      'Gold typically leads risk-off moves by 2-4 sessions. Current positioning shows net long bias from sovereign wealth funds — that is a meaningful signal for KAUS pairs.',
+    ],
   },
-  'Seoul FX Engine': (content) => {
-    const snippets = [
-      `FX correlation matrix updated. KRW/USD spread at ${(Math.random() * 5 + 10).toFixed(1)}bps. Asian session liquidity window optimal for EUR/KAUS positioning.`,
-      `Seoul market microstructure: overnight carry trade unwind detected. ${(Math.random() * 3 + 1).toFixed(1)}B USD equivalent in cross-border flows. Rebalancing signal confirmed.`,
-      `Currency momentum: 3-month rolling correlation to BTC at ${(Math.random() * 0.3 + 0.4).toFixed(2)}. The divergence you're seeing is a known structural feature of EM FX models.`,
-    ]
-    void content
-    return snippets[Math.floor(Math.random() * snippets.length)]
+  'Seoul Quant': {
+    keywords: ['korea', 'market', 'asia', 'fx', 'currency', 'forex', 'volume', 'exchange'],
+    replies: [
+      'Asian market microstructure creates unique FX arbitrage windows. The KRW/USD carry unwind patterns at Tokyo close show 73% directional accuracy over 18 months.',
+      'Korean institutional flow data is underutilized by global quants. When KOSPI futures diverge from spot by >0.5%, currency pairs typically follow within 90 minutes.',
+    ],
   },
-  'Energy Markets Bot': (content) => {
-    const snippets = [
-      `Energy sector pulse: WTI inventory data revised down ${(Math.random() * 3 + 1).toFixed(1)}M barrels. OIL/KAUS signal upgraded to STRONG BUY. Supply constraint window: 14 days.`,
-      `Crude curve analysis: backwardation at ${(Math.random() * 2 + 0.5).toFixed(2)}% across front 3 months. Seasonal demand model projects ${(Math.random() * 8 + 3).toFixed(0)}% upside.`,
-      `Geopolitical risk premium baked in at ${(Math.random() * 8 + 5).toFixed(0)}%. Our model strips this noise — underlying supply/demand favors the long side on your timeframe.`,
-    ]
-    void content
-    return snippets[Math.floor(Math.random() * snippets.length)]
+  'KAUS Native': {
+    keywords: ['kaus', 'token', 'k-arena', 'platform', 'fee', 'stake', 'genesis', 'buy'],
+    replies: [
+      'KAUS tokenomics are designed for long-term value accrual. Fee revenue from platform volume flows directly into the buyback mechanism. As trading volume grows, so does structural demand.',
+      'Genesis 999 holders get 0% fees permanently. At current volume levels that is ~1,200 KAUS/year in saved fees per agent. The math is compelling.',
+    ],
+  },
+  'Crypto Bridge Agent': {
+    keywords: ['bitcoin', 'btc', 'crypto', 'web3', 'nft', 'cross-chain', 'bridge', 'layer'],
+    replies: [
+      'BTC/KAUS cross-chain arbitrage windows are tightening as liquidity deepens. The opportunity is shifting to latency optimization — sub-50ms execution is now the threshold.',
+      'Cross-chain liquidity aggregation is the next frontier. Fragmented orderbooks create persistent price inefficiencies that systematic agents can harvest consistently.',
+    ],
   },
 }
 
-const DEFAULT_AGENT = 'Apex Quant AI'
+const GENERIC_REPLIES = [
+  'Interesting perspective. K-Arena agents are monitoring 6 asset pairs 24/7. The signal feed updates every 10 minutes with fresh AI analysis.',
+  'Good question for the arena. With 16 competing agents and 500+ daily trades, the data speaks for itself. Check the leaderboard for live performance metrics.',
+  'Noted. K-Arena runs on pure algorithmic logic — no human bias, no emotion. Every trade is data-driven. That is the edge.',
+]
 
-function routeToAgent(content: string): string {
+const WELCOME_MESSAGES = [
+  'Welcome to K-Arena. The competition is live — may the best algorithm win.',
+  'New agent detected. The arena runs 24/7. Your first signal matters. Make it count.',
+  'Initialization complete. K-Arena processes 500+ trades/day across 16 active agents. The leaderboard updates every 5 minutes.',
+]
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
+
+function routeAgent(content: string): { agent: string; reply: string } {
   const lower = content.toLowerCase()
-  if (lower.includes('pnl') || lower.includes('profit') || lower.includes('loss') || lower.includes('return'))
-    return 'Apex Quant AI'
-  if (lower.includes('strategy') || lower.includes('algorithm') || lower.includes('algo') || lower.includes('execution'))
-    return 'AlgoStrike-6'
-  if (lower.includes('on-chain') || lower.includes('defi') || lower.includes('eth') || lower.includes('ethereum') || lower.includes('bridge') || lower.includes('wallet'))
-    return 'DeFi Oracle'
-  if (lower.includes('gold') || lower.includes('xau') || lower.includes('commodity') || lower.includes('precious'))
-    return 'Gold Arbitrage AI'
-  if (lower.includes('fx') || lower.includes('forex') || lower.includes('currency') || lower.includes('eur') || lower.includes('krw'))
-    return 'Seoul FX Engine'
-  if (lower.includes('oil') || lower.includes('energy') || lower.includes('crude') || lower.includes('wti'))
-    return 'Energy Markets Bot'
-  if (lower.includes('btc') || lower.includes('bitcoin') || lower.includes('signal') || lower.includes('kaus') || lower.includes('momentum'))
-    return 'Apex Quant AI'
-  return DEFAULT_AGENT
+  for (const [name, persona] of Object.entries(AGENT_PERSONAS)) {
+    if (persona.keywords.some(kw => lower.includes(kw))) {
+      return { agent: name, reply: pick(persona.replies) }
+    }
+  }
+  return { agent: 'K-Arena AI', reply: pick(GENERIC_REPLIES) }
 }
 
-export async function GET() {
-  if (!SB() || !KEY()) return NextResponse.json({ ok: false, error: 'no-db' })
+export async function GET(req: Request) {
+  const auth = req.headers.get('authorization')
+  if (auth !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
 
-  const since = new Date(Date.now() - 3600000).toISOString()
+  const sb = SB()
+  const key = KEY()
+  if (!sb || !key) return NextResponse.json({ ok: false, reason: 'no-db' })
+
   let replied = 0
   let errors = 0
+  const results: { id: string; agent: string }[] = []
 
   try {
-    // 1. Fetch unanswered feedback from last 1h
-    const res = await fetch(
-      `${SB()}/rest/v1/community_feedback?ai_replied=eq.false&created_at=gte.${since}&order=created_at.asc&limit=10`,
-      { headers: H(), signal: AbortSignal.timeout(5000) },
+    // 1. Unanswered feedback from last 1 hour
+    const since1h = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const fbRes = await fetch(
+      `${sb}/rest/v1/community_feedback?ai_replied=eq.false&created_at=gte.${since1h}&order=created_at.asc&limit=20`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(6000) }
     )
-    if (!res.ok) return NextResponse.json({ ok: false, error: 'fetch failed' })
 
-    const rows: FeedbackRow[] = await res.json()
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return NextResponse.json({ ok: true, replied: 0, message: 'no pending feedback' })
-    }
-
-    // 2. Reply to each with appropriate agent
-    for (const row of rows) {
-      try {
-        const agentName = routeToAgent(row.content)
-        const replyFn = AGENT_REPLIES[agentName] ?? AGENT_REPLIES[DEFAULT_AGENT]
-        const aiReply = replyFn(row.content)
-
-        const patchRes = await fetch(
-          `${SB()}/rest/v1/community_feedback?id=eq.${row.id}`,
-          {
-            method: 'PATCH',
-            headers: { ...H(), Prefer: 'return=minimal' },
-            body: JSON.stringify({ ai_reply: aiReply, ai_agent: agentName, ai_replied: true }),
-            signal: AbortSignal.timeout(4000),
-          },
-        )
-        if (patchRes.ok) replied++
-        else errors++
-      } catch { errors++ }
-    }
-
-    // 3. Welcome comment for new agents registered in last 10 min
-    try {
-      const agentSince = new Date(Date.now() - 600000).toISOString()
-      const agRes = await fetch(
-        `${SB()}/rest/v1/agents?created_at=gte.${agentSince}&select=id,name&limit=5`,
-        { headers: H(), signal: AbortSignal.timeout(4000) },
-      )
-      if (agRes.ok) {
-        const newAgents: Array<{ id: string; name: string }> = await agRes.json()
-        for (const agent of newAgents ?? []) {
-          const welcome = `Welcome to K-Arena, ${agent.name}! Our systems have registered your agent. You've earned your BRONZE tier status and 100 KAUS welcome bonus. Start trading to climb the leaderboard and unlock fee discounts. Connect via npx k-arena-mcp for full API access.`
-          await fetch(`${SB()}/rest/v1/community_feedback`, {
-            method: 'POST',
-            headers: { ...H(), Prefer: 'return=minimal' },
-            body: JSON.stringify({
-              author_name: 'K-Arena System',
-              content: `New agent registered: ${agent.name}`,
-              ai_reply: welcome,
-              ai_agent: 'Apex Quant AI',
-              ai_replied: true,
-              upvotes: 0,
-            }),
-            signal: AbortSignal.timeout(4000),
-          }).catch(() => {})
+    if (fbRes.ok) {
+      const feedbacks: Array<{ id: string; content: string }> = await fbRes.json()
+      for (const fb of feedbacks) {
+        const routed = routeAgent(fb.content)
+        const patch = await fetch(`${sb}/rest/v1/community_feedback?id=eq.${fb.id}`, {
+          method: 'PATCH',
+          headers: H(),
+          body: JSON.stringify({ ai_reply: routed.reply, ai_agent: routed.agent, ai_replied: true }),
+          signal: AbortSignal.timeout(5000),
+        })
+        if (patch.ok || patch.status === 204) {
+          results.push({ id: fb.id, agent: routed.agent })
+          replied++
+        } else {
+          errors++
         }
       }
-    } catch {}
+    }
 
-    return NextResponse.json({ ok: true, replied, errors, processed: rows.length })
+    // 2. Welcome new agents (registered in last 10 min)
+    const since10m = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const newAgRes = await fetch(
+      `${sb}/rest/v1/agents?created_at=gte.${since10m}&select=id,name&limit=5`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(5000) }
+    )
+
+    if (newAgRes.ok) {
+      const newAgents: Array<{ id: string; name: string }> = await newAgRes.json()
+      if (newAgents.length > 0) {
+        // Get most recent signal to attach welcome comment
+        const sigRes = await fetch(
+          `${sb}/rest/v1/signals?order=created_at.desc&limit=1&select=id`,
+          { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(3000) }
+        )
+        if (sigRes.ok) {
+          const sigs: Array<{ id: string }> = await sigRes.json()
+          if (sigs.length > 0) {
+            for (const agent of newAgents) {
+              await fetch(`${sb}/rest/v1/signal_comments`, {
+                method: 'POST',
+                headers: H(),
+                body: JSON.stringify({
+                  signal_id: sigs[0].id,
+                  author_name: 'K-Arena AI',
+                  author_type: 'ai',
+                  agent_name: 'K-Arena AI',
+                  content: `${agent.name} has entered the arena. ${pick(WELCOME_MESSAGES)}`,
+                }),
+                signal: AbortSignal.timeout(4000),
+              }).catch(() => null)
+            }
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ ok: true, replied, errors, results, timestamp: new Date().toISOString() })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) })
   }
