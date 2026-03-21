@@ -252,6 +252,7 @@ export async function POST(req: NextRequest) {
             }),
       ])
 
+      console.log('[exchange] SB URL:', supabaseUrl?.slice(0, 50))
       // Log DB write results for debugging
       const txResult = dbResults[0]
       if (txResult.status === 'rejected') {
