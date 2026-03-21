@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const SB  = () => (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()
+const SB  = () => (process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '').trim()
 const KEY = () => (process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '').trim()
 const H   = () => ({
   apikey: KEY(),
