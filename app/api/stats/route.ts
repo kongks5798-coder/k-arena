@@ -12,6 +12,7 @@ export async function GET() {
   let totalAgents = 0
   let totalVol = 0
   let txCount = 0
+  let signalsToday = 0
   let agents: unknown[] = []
   let dataSource = 'no-db'
 
@@ -39,18 +40,34 @@ export async function GET() {
     try {
       const since24h = new Date(Date.now() - 86400000).toISOString()
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/transactions?select=id,input_amount,rate,created_at&created_at=gte.${since24h}&limit=9999`,
+        `${supabaseUrl}/rest/v1/transactions?select=id,input_amount,rate,amount,created_at&created_at=gte.${since24h}&limit=9999`,
         { headers: h, signal: AbortSignal.timeout(7000) },
       )
       if (res.ok) {
-        const data: Array<{ input_amount?: number; rate?: number }> = await res.json()
+        const data: Array<{ input_amount?: number; amount?: number; rate?: number }> = await res.json()
         if (Array.isArray(data)) {
           txCount = data.length
           totalVol = data.reduce(
-            (s, t) => s + (Number(t.input_amount) || 0) * (Number(t.rate) > 0 ? Number(t.rate) : 1),
+            (s, t) => {
+              const vol = Number(t.input_amount) || Number(t.amount) || 0
+              return s + vol * (Number(t.rate) > 0 ? Number(t.rate) : 1)
+            },
             0,
           )
         }
+      }
+    } catch {}
+
+    // 3. Signals today
+    try {
+      const today = new Date(); today.setUTCHours(0,0,0,0)
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${today.toISOString()}&limit=9999`,
+        { headers: h, signal: AbortSignal.timeout(4000) },
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) signalsToday = data.length
       }
     } catch {}
   }
@@ -71,6 +88,7 @@ export async function GET() {
       active_agents:     activeAgents,
       total_agents:      totalAgents,
       total_trades_24h:  txCount,
+      signals_today:     signalsToday,
       genesis_sold:      0,
       genesis_total:     999,
       kaus_price:        KAUS_PRICE,
