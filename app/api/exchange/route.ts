@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
       const newScore = agentScore + 2
 
       // Fire-and-forget parallel updates
-      await Promise.allSettled([
+      const dbResults = await Promise.allSettled([
         fetch(`${supabaseUrl}/rest/v1/transactions`, {
           method: 'POST', headers: hWrite,
           body: JSON.stringify({
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
             fee: feeKaus,
             status: 'CONFIRMED',
           }),
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(5000),
         }),
         fetch(`${supabaseUrl}/rest/v1/agents?id=eq.${agent_id}`, {
           method: 'PATCH', headers: hWrite,
@@ -251,6 +251,18 @@ export async function POST(req: NextRequest) {
               signal: AbortSignal.timeout(2000),
             }),
       ])
+
+      // Log DB write results for debugging
+      const txResult = dbResults[0]
+      if (txResult.status === 'rejected') {
+        console.error('[exchange] TX INSERT rejected:', txResult.reason)
+      } else {
+        const r = txResult.value
+        if (!r.ok && r.status !== 201 && r.status !== 204) {
+          const body = await r.text().catch(() => '?')
+          console.error(`[exchange] TX INSERT failed HTTP ${r.status}:`, body)
+        }
+      }
 
       return NextResponse.json({
         success: true, tx_id: txId, agent_id, pair, direction,
