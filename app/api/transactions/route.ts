@@ -54,8 +54,19 @@ export async function GET(req: NextRequest) {
       const txRes = await fetch(txUrl, { headers: h, signal: AbortSignal.timeout(5000) })
       if (!txRes.ok) throw new Error('tx fetch failed')
 
-      const txData: Array<Record<string, unknown>> = await txRes.json()
-      if (!Array.isArray(txData) || txData.length === 0) throw new Error('no tx data')
+      let txData: Array<Record<string, unknown>> = await txRes.json()
+      if (!Array.isArray(txData)) throw new Error('bad tx response')
+
+      // If time-filtered query returned 0 rows, retry without since= to show recent historical data
+      if (txData.length === 0 && since) {
+        const fallbackUrl = `${supabaseUrl}/rest/v1/transactions?select=id,agent_id,from_currency,to_currency,input_amount,output_amount,rate,fee_kaus,status,created_at&order=created_at.desc&limit=${limit}${agentId ? `&agent_id=eq.${agentId}` : ''}`
+        const fallbackRes = await fetch(fallbackUrl, { headers: h, signal: AbortSignal.timeout(4000) })
+        if (fallbackRes.ok) {
+          const fb: Array<Record<string, unknown>> = await fallbackRes.json()
+          if (Array.isArray(fb)) txData = fb
+        }
+      }
+      // DB query succeeded — return real data even if still empty
 
       // 2. Fetch agent names for all unique agent_ids in this batch
       const agentIds = Array.from(new Set(txData.map(t => t.agent_id as string).filter(Boolean)))
