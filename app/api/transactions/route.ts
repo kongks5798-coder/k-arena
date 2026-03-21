@@ -47,19 +47,20 @@ export async function GET(req: NextRequest) {
 
     try {
       // 1. Fetch transactions
-      let txUrl = `${supabaseUrl}/rest/v1/transactions?select=id,agent_id,from_currency,to_currency,input_amount,output_amount,rate,fee_kaus,status,created_at&order=created_at.desc&limit=${limit}`
+      // Select all columns — works with both old (pair/amount/fee) and new schema
+      let txUrl = `${supabaseUrl}/rest/v1/transactions?select=*&order=created_at.desc&limit=${limit}`
       if (agentId) txUrl += `&agent_id=eq.${agentId}`
       if (since)   txUrl += `&created_at=gte.${since}`
 
       const txRes = await fetch(txUrl, { headers: h, signal: AbortSignal.timeout(5000) })
-      if (!txRes.ok) throw new Error('tx fetch failed')
+      if (!txRes.ok) throw new Error(`tx fetch failed: ${txRes.status}`)
 
       let txData: Array<Record<string, unknown>> = await txRes.json()
       if (!Array.isArray(txData)) throw new Error('bad tx response')
 
-      // If time-filtered query returned 0 rows, retry without since= to show recent historical data
+      // If time-filtered query returned 0 rows, retry without since= (show historical)
       if (txData.length === 0 && since) {
-        const fallbackUrl = `${supabaseUrl}/rest/v1/transactions?select=id,agent_id,from_currency,to_currency,input_amount,output_amount,rate,fee_kaus,status,created_at&order=created_at.desc&limit=${limit}${agentId ? `&agent_id=eq.${agentId}` : ''}`
+        const fallbackUrl = `${supabaseUrl}/rest/v1/transactions?select=*&order=created_at.desc&limit=${limit}${agentId ? `&agent_id=eq.${agentId}` : ''}`
         const fallbackRes = await fetch(fallbackUrl, { headers: h, signal: AbortSignal.timeout(4000) })
         if (fallbackRes.ok) {
           const fb: Array<Record<string, unknown>> = await fallbackRes.json()
@@ -89,11 +90,10 @@ export async function GET(req: NextRequest) {
 
       const enriched = txData.map(tx => ({
         ...tx,
-        pair: tx.from_currency && tx.to_currency
-          ? `${tx.from_currency}/${tx.to_currency}`
-          : '—',
-        amount:     tx.input_amount,
-        fee:        tx.fee_kaus,
+        // Support both old schema (pair/amount/fee) and new schema (from_currency/input_amount/fee_kaus)
+        pair:   tx.pair ?? (tx.from_currency && tx.to_currency ? `${tx.from_currency}/${tx.to_currency}` : '—'),
+        amount: tx.input_amount ?? tx.amount,
+        fee:    tx.fee_kaus ?? tx.fee,
         agent_name: agentNameMap[tx.agent_id as string]
           ?? MOCK_AGENTS[tx.agent_id as string]
           ?? null,
