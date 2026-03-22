@@ -61,6 +61,9 @@ export async function GET(request: Request) {
   const abortController = new AbortController()
   request.signal.addEventListener('abort', () => abortController.abort())
 
+  // 최대 연결 시간 5분 — 서버리스 함수 무한 실행 방지
+  const maxDuration = setTimeout(() => abortController.abort(), 5 * 60 * 1000)
+
   const stream = new ReadableStream({
     async start(controller) {
       const encode = (text: string) => new TextEncoder().encode(text)
@@ -126,6 +129,7 @@ export async function GET(request: Request) {
         }
       }
 
+      clearTimeout(maxDuration)
       try {
         controller.close()
       } catch {

@@ -5,7 +5,32 @@ export const dynamic = 'force-dynamic'
 const SB  = () => (process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '').trim()
 const KEY = () => (process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '').trim()
 
+// In-memory rate limiter: IP → { count, resetAt }
+const rl = new Map<string, { n: number; t: number }>()
+const LIMIT = 30       // 30 req
+const WINDOW = 60_000  // per 60s
+
+function rateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rl.get(ip)
+  if (!entry || now > entry.t) {
+    rl.set(ip, { n: 1, t: now + WINDOW })
+    return false
+  }
+  if (entry.n >= LIMIT) return true
+  entry.n++
+  return false
+}
+
 export async function GET(req: Request) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (rateLimit(ip)) {
+    return NextResponse.json(
+      { ok: false, reason: 'rate_limited', retry_after: 60 },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    )
+  }
+
   const { searchParams } = new URL(req.url)
   const period = searchParams.get('period') ?? '24H'
   const sb = SB(); const key = KEY()

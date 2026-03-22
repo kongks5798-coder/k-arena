@@ -4,11 +4,12 @@ import { Topbar } from '@/components/Topbar'
 import { Sidebar } from '@/components/Sidebar'
 
 const TOTAL = 999
+// Genesis membership is free during simulation phase — payment coming soon
 const PAYMENT_PRICES: Record<string, { base: string; total: string; usd: string }> = {
-  kaus: { base: '500 KAUS',    total: '500.5 KAUS',  usd: '≈ $923' },
-  usdc: { base: '$923.00',     total: '$923.93',      usd: '$923' },
-  btc:  { base: '0.01107 BTC', total: '0.01108 BTC',  usd: '≈ $923' },
-  wire: { base: '$950.00',     total: '$950.00',       usd: '$950 (wire fee incl.)' },
+  kaus: { base: 'FREE (Simulation)',  total: 'FREE', usd: 'No charge' },
+  usdc: { base: 'FREE (Simulation)',  total: 'FREE', usd: 'No charge' },
+  btc:  { base: 'FREE (Simulation)',  total: 'FREE', usd: 'No charge' },
+  wire: { base: 'FREE (Simulation)',  total: 'FREE', usd: 'No charge' },
 }
 
 const BENEFITS = [
@@ -164,21 +165,19 @@ export default function GenesisPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em', marginBottom: 6 }}>PAYMENT METHOD</div>
-                    <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: 'var(--white)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}>
-                      <option value="kaus">KAUS Token</option>
-                      <option value="usdc">USDC</option>
-                      <option value="btc">BTC</option>
-                      <option value="wire">Bank Wire</option>
-                    </select>
+                  <div style={{ padding: '10px 12px', border: '1px solid rgba(0,255,136,0.2)', background: 'rgba(0,255,136,0.04)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 4 }}>SIMULATION PHASE — FREE ACCESS</div>
+                    <div style={{ fontSize: 10, color: 'var(--dimmer)', lineHeight: 1.6 }}>
+                      Genesis membership is complimentary during the simulation phase.
+                      No payment required. No real assets involved.
+                    </div>
                   </div>
 
                   <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', padding: 12 }}>
                     {[
-                      [`Genesis #${claimedVal + 1}`, prices.base],
-                      ['Network fee', '≈ 0.1 KAUS'],
-                      ['USD equivalent', prices.usd],
+                      [`Genesis #${claimedVal + 1}`, 'FREE'],
+                      ['Phase', 'Simulation (Demo)'],
+                      ['Real payment', 'Not required'],
                     ].map(([k, v]) => (
                       <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'IBM Plex Mono', marginBottom: 6 }}>
                         <span style={{ color: 'var(--dimmer)' }}>{k}</span>
@@ -187,7 +186,7 @@ export default function GenesisPage() {
                     ))}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 500, fontFamily: 'IBM Plex Mono', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                       <span style={{ color: 'var(--dimmer)' }}>TOTAL</span>
-                      <span style={{ color: 'var(--green)' }}>{prices.total}</span>
+                      <span style={{ color: 'var(--green)' }}>FREE</span>
                     </div>
                   </div>
 

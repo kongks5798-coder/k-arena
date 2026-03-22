@@ -4,7 +4,23 @@ export const dynamic = 'force-dynamic'
 
 const KAUS_PRICE = 1.0000
 
-export async function GET() {
+// In-memory rate limiter: 60 req / 60s per IP
+const rl = new Map<string, { n: number; t: number }>()
+function rateLimit(ip: string): boolean {
+  const now = Date.now()
+  const e = rl.get(ip)
+  if (!e || now > e.t) { rl.set(ip, { n: 1, t: now + 60_000 }); return false }
+  if (e.n >= 60) return true
+  e.n++; return false
+}
+
+export async function GET(req: Request) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (rateLimit(ip)) {
+    return NextResponse.json({ ok: false, reason: 'rate_limited' }, {
+      status: 429, headers: { 'Retry-After': '60' },
+    })
+  }
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()
   const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '').trim()
 
