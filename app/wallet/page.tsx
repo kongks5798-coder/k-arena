@@ -1,199 +1,241 @@
 'use client'
+import { useState, useEffect, useCallback } from 'react'
 
-import { useState, useEffect } from 'react'
-import { Topbar } from '@/components/Topbar'
-import { Sidebar } from '@/components/Sidebar'
+const KAUS_CONTRACT = process.env.NEXT_PUBLIC_KAUS_CONTRACT || '0xfBfbb12E10f8b3418C278147F37507526670B247'
+const USDC_CONTRACT = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
+const POLYGON_CHAIN_ID = '0x89'
 
-const TX_HISTORY = [
-  { dir: '⇄', desc: 'USD → KRW Exchange', time: '2 min ago · $14.2M notional', amt: '−14.20 KAUS', in: false, status: 'SETTLED' },
-  { dir: '↓', desc: 'Fee Distribution (Demo)', time: '1 hour ago · Sample data', amt: '+403.20 KAUS', in: true, status: 'RECEIVED' },
-  { dir: '⇄', desc: 'XAU → USD Exchange', time: '3 hours ago · 500 oz gold', amt: '−8.75 KAUS', in: false, status: 'SETTLED' },
-  { dir: '↑', desc: 'Staking Distribution', time: '6 hours ago · 30D pool', amt: '+62.40 KAUS', in: true, status: 'RECEIVED' },
-  { dir: '⇄', desc: 'kWh Energy Purchase', time: 'Yesterday · 84,320 kWh', amt: '−1,840.00 KAUS', in: false, status: 'SETTLED' },
-  { dir: '⇄', desc: 'JPY → USD Exchange', time: 'Yesterday · ¥14B', amt: '−9.34 KAUS', in: false, status: 'CONFIRMING' },
-]
+function encodeBalanceOf(addr: string): string {
+  const sig = '0x70a08231'
+  const padded = addr.replace('0x', '').padStart(64, '0')
+  return sig + padded
+}
 
-const PORTFOLIO = [
-  { name: 'KAUS', badge: 'NATIVE', balanceKey: true, usd: null, change: '▲ +3.24%', up: true },
-  { name: 'USDC', badge: 'STABLE', balance: '48,200.00', usd: '$48,200.00', change: '0.00%', up: true },
-  { name: 'kWh', badge: 'ENERGY', balance: '84,320', usd: '$20,827.04', change: '▲ +2.11%', up: true },
-  { name: 'GENESIS', badge: 'NFT', balance: '#744', usd: 'Platform fee waiver', change: 'Active ✓', up: true },
-]
+function encodeTransfer(to: string, amountHex: string): string {
+  const sig = '0xa9059cbb'
+  const toHex = to.replace('0x', '').padStart(64, '0')
+  const amtHex = amountHex.replace('0x', '').padStart(64, '0')
+  return sig + toHex + amtHex
+}
 
-const STAKE_OPTIONS = [
-  { name: 'Flexible', sub: 'Unlock anytime', apy: 20 },
-  { name: '30 Days', sub: 'Best balance', apy: 35 },
-  { name: '90 Days', sub: 'Maximum yield', apy: 50 },
-]
+function formatUnits(hex: string, decimals: number): string {
+  const value = BigInt(hex)
+  const divisor = BigInt(10 ** decimals)
+  const whole = value / divisor
+  const frac = value % divisor
+  const fracStr = frac.toString().padStart(decimals, '0').slice(0, 4).replace(/0+$/, '')
+  return fracStr ? `${whole}.${fracStr}` : `${whole}`
+}
+
+function parseUnits18(amount: string): string {
+  const [whole, frac = ''] = amount.split('.')
+  const fracPadded = (frac + '0'.repeat(18)).slice(0, 18)
+  const val = BigInt(whole) * BigInt(10 ** 18) + BigInt(fracPadded)
+  return '0x' + val.toString(16)
+}
 
 export default function WalletPage() {
-  const [balance, setBalance] = useState(12480.5)
-  const [selectedStake, setSelectedStake] = useState(1)
-  const [stakeAmt, setStakeAmt] = useState('')
-  const KAUS_PRICE = 1.847
+  const [account, setAccount] = useState<string | null>(null)
+  const [kausBalance, setKausBalance] = useState('--')
+  const [usdcBalance, setUsdcBalance] = useState('--')
+  const [totalSupply, setTotalSupply] = useState('--')
+  const [totalFees, setTotalFees] = useState('--')
+  const [sendTo, setSendTo] = useState('')
+  const [sendAmt, setSendAmt] = useState('')
+  const [sending, setSending] = useState(false)
+  const [txHash, setTxHash] = useState('')
+  const [history, setHistory] = useState<any[]>([])
+  const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      setBalance(b => +(b + (Math.random() - 0.45) * 0.8).toFixed(2))
-    }, 3000)
-    return () => clearInterval(t)
+  const getEth = () => (window as any).ethereum
+
+  const loadBalances = useCallback(async (addr: string) => {
+    const eth = getEth()
+    if (!eth) return
+    try {
+      const [kb, ub, ts, tf] = await Promise.all([
+        eth.request({ method: 'eth_call', params: [{ to: KAUS_CONTRACT, data: encodeBalanceOf(addr) }, 'latest'] }),
+        eth.request({ method: 'eth_call', params: [{ to: USDC_CONTRACT, data: encodeBalanceOf(addr) }, 'latest'] }),
+        eth.request({ method: 'eth_call', params: [{ to: KAUS_CONTRACT, data: '0x18160ddd' }, 'latest'] }),
+        eth.request({ method: 'eth_call', params: [{ to: KAUS_CONTRACT, data: '0x7a8a8f2d' }, 'latest'] }),
+      ])
+      setKausBalance(formatUnits(kb, 18))
+      setUsdcBalance(formatUnits(ub, 6))
+      setTotalSupply(formatUnits(ts, 18))
+      setTotalFees(formatUnits(tf, 18))
+    } catch {}
   }, [])
 
-  const stakeYield = stakeAmt
-    ? ((parseFloat(stakeAmt) * STAKE_OPTIONS[selectedStake].apy) / 100 / 12).toFixed(2)
-    : null
+  const loadHistory = useCallback(async () => {
+    try {
+      const r = await fetch('/api/kaus/revenue')
+      const d = await r.json()
+      setHistory(d.purchases || [])
+    } catch {}
+  }, [])
+
+  const connect = async () => {
+    setError('')
+    const eth = getEth()
+    if (!eth) { setError('MetaMask가 설치되어 있지 않습니다.'); return }
+    try {
+      await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: POLYGON_CHAIN_ID }] })
+    } catch (e: any) {
+      if (e.code === 4902) {
+        await eth.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: POLYGON_CHAIN_ID,
+            chainName: 'Polygon Mainnet',
+            nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+            rpcUrls: ['https://polygon-bor-rpc.publicnode.com'],
+            blockExplorerUrls: ['https://polygonscan.com']
+          }]
+        })
+      }
+    }
+    const accounts = await eth.request({ method: 'eth_requestAccounts' })
+    const addr = accounts[0]
+    setAccount(addr)
+    await Promise.all([loadBalances(addr), loadHistory()])
+  }
+
+  const addToMetaMask = async () => {
+    const eth = getEth()
+    if (!eth) return
+    await eth.request({
+      method: 'wallet_watchAsset',
+      params: {
+        type: 'ERC20',
+        options: { address: KAUS_CONTRACT, symbol: 'KAUS', decimals: 18, image: 'https://karena.fieldnine.io/brand/kaus-logo.svg' }
+      }
+    })
+  }
+
+  const sendKaus = async () => {
+    if (!account || !sendTo || !sendAmt) return
+    setSending(true); setError(''); setStatus('')
+    try {
+      const eth = getEth()
+      const amtHex = parseUnits18(sendAmt)
+      const data = encodeTransfer(sendTo, amtHex)
+      const hash = await eth.request({
+        method: 'eth_sendTransaction',
+        params: [{ from: account, to: KAUS_CONTRACT, data, gas: '0x15F90' }]
+      })
+      setTxHash(hash)
+      setStatus('전송 완료!')
+      setSendTo(''); setSendAmt('')
+      setTimeout(() => loadBalances(account), 3000)
+    } catch (e: any) {
+      setError(e.message || '전송 실패')
+    }
+    setSending(false)
+  }
+
+  useEffect(() => {
+    const eth = getEth()
+    if (eth) {
+      eth.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
+        if (accounts[0]) { setAccount(accounts[0]); loadBalances(accounts[0]); loadHistory() }
+      })
+    }
+  }, [loadBalances, loadHistory])
+
+  const mono = { fontFamily: 'IBM Plex Mono, monospace' }
+  const card: React.CSSProperties = { border: '1px solid #1a1a1a', background: '#0d0d0d', padding: '20px 24px' }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--black)' }}>
-      {/* Demo banner */}
-      <div style={{ background: 'var(--amber-dim)', borderBottom: '0.5px solid rgba(186,117,23,0.3)', padding: '8px 28px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>⚠</span>
-        DEMO ENVIRONMENT — Simulated data only. APY rates are illustrative and not guaranteed. This is not a financial product.
-      </div>
-      <Topbar rightContent={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dim)', border: '1px solid var(--border)', padding: '4px 12px', borderRadius: 20 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1D9E75', display: 'inline-block' }}/>
-          Demo Wallet
-        </div>
-      }/>
-      <div style={{ display: 'flex', height: 'calc(100vh - 65px - 36px)' }}>
-        <Sidebar />
-        <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+    <div style={{ minHeight: '100vh', background: '#080808', color: '#F0F0EC', ...mono, padding: '48px 32px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.15em', marginBottom: 8 }}>K-ARENA / WALLET</div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>KAUS WALLET</h1>
+        <p style={{ fontSize: 11, color: '#555', marginBottom: 32 }}>Polygon Mainnet · {KAUS_CONTRACT.slice(0, 10)}...</p>
 
-          {/* Balance hero */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, padding: 28, marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        {!account ? (
+          <button onClick={connect} style={{ background: '#00FF88', color: '#000', border: 'none', padding: '14px 32px', fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', ...mono }}>
+            CONNECT METAMASK
+          </button>
+        ) : (
+          <>
+            <div style={{ ...card, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginBottom: 6 }}>DEMO WALLET · SIMULATED DATA</div>
-                <div style={{ fontSize: 48, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
-                <div style={{ fontSize: 14, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginTop: 6 }}>
-                  KAUS · ≈ ${(balance * KAUS_PRICE).toFixed(2)} USD <span style={{ fontSize: 10, color: 'var(--dimmer)' }}>(demo rate)</span>
-                </div>
-                <div style={{ fontSize: 13, fontFamily: 'JetBrains Mono, monospace', color: 'var(--green)', marginTop: 4 }}>▲ +3.24% (simulated)</div>
+                <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', marginBottom: 4 }}>CONNECTED WALLET</div>
+                <div style={{ fontSize: 13, color: '#00FF88' }}>{account.slice(0, 8)}...{account.slice(-6)}</div>
               </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {[
-                  { label: 'Exchange →', action: () => window.location.href = '/exchange' },
-                  { label: 'Send', action: () => alert('Demo mode') },
-                  { label: 'Receive', action: () => alert('Demo mode') },
-                  { label: 'Buy KAUS', action: () => alert('Demo mode') },
-                ].map(({ label, action }, i) => (
-                  <button key={label} onClick={action} style={{ padding: '10px 22px', borderRadius: 2, fontSize: 12, fontWeight: 500, fontFamily: 'IBM Plex Mono, monospace', cursor: 'pointer', letterSpacing: '0.05em', background: i === 0 ? '#0A0A0A' : 'transparent', color: i === 0 ? '#F9F9F7' : '#555', border: i === 0 ? 'none' : '0.5px solid rgba(0,0,0,0.1)' }}>{label}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Portfolio */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, padding: 22 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', color: 'var(--dimmer)' }}>PORTFOLIO</div>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>Simulated balances</div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 4 }}>
-                  {PORTFOLIO.map(t => (
-                    <div key={t.name} style={{ border: `0.5px solid ${t.name === 'KAUS' ? '#0A0A0A' : 'rgba(0,0,0,0.1)'}`, borderRadius: 2, padding: 14, background: 'var(--black)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace' }}>{t.name}</span>
-                        <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', padding: '2px 7px', borderRadius: 4, background: t.name === 'KAUS' ? '#0A0A0A' : '#F0F0EE', color: t.name === 'KAUS' ? '#fff' : '#555' }}>{t.badge}</span>
-                      </div>
-                      <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 2 }}>{t.balanceKey ? balance.toFixed(2) : t.balance}</div>
-                      {t.usd && <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>{t.usd}</div>}
-                      {!t.usd && t.name === 'KAUS' && <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>≈ ${(balance * KAUS_PRICE).toFixed(2)} USD</div>}
-                      {!t.usd && t.name !== 'KAUS' && <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>{t.balance}</div>}
-                      <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: t.up ? '#1D9E75' : '#E24B4A', marginTop: 2 }}>{t.change}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* TX History */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, padding: 22 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.18em', color: 'var(--dimmer)' }}>TRANSACTION HISTORY</div>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>Sample data</div>
-                </div>
-                {TX_HISTORY.map((tx, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < TX_HISTORY.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 2, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, background: 'var(--black)' }}>{tx.dir}</div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{tx.desc}</div>
-                        <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginTop: 2 }}>{tx.time}</div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', color: tx.in ? '#1D9E75' : '#0A0A0A' }}>{tx.amt}</div>
-                      <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', padding: '2px 7px', borderRadius: 4, background: tx.status === 'SETTLED' || tx.status === 'RECEIVED' ? '#E1F5EE' : '#FAEEDA', color: tx.status === 'SETTLED' || tx.status === 'RECEIVED' ? '#0F6E56' : '#854F0B' }}>{tx.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <button onClick={addToMetaMask} style={{ background: 'transparent', border: '1px solid #333', color: '#888', padding: '8px 16px', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', ...mono }}>
+                + ADD TO METAMASK
+              </button>
             </div>
 
-            {/* Right: staking + distribution */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, padding: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: 'var(--dimmer)' }}>KAUS STAKING</div>
-                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--amber)', background: 'var(--amber-dim)', padding: '3px 10px', borderRadius: 20 }}>UP TO 50%*</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16, marginBottom: 32 }}>
+              {[
+                { label: 'KAUS BALANCE', value: `${kausBalance} KAUS`, color: '#00FF88' },
+                { label: 'USDC BALANCE', value: `${usdcBalance} USDC`, color: '#F0F0EC' },
+                { label: 'TOTAL SUPPLY', value: `${totalSupply} KAUS`, color: '#888' },
+                { label: 'TOTAL FEES COLLECTED', value: `${totalFees} KAUS`, color: '#888' },
+              ].map(c => (
+                <div key={c.label} style={card}>
+                  <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', marginBottom: 8 }}>{c.label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: c.color }}>{c.value}</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                  {STAKE_OPTIONS.map((opt, i) => (
-                    <div key={opt.name} onClick={() => setSelectedStake(i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, border: `0.5px solid ${selectedStake === i ? '#0A0A0A' : 'rgba(0,0,0,0.1)'}`, borderRadius: 2, background: 'var(--black)', cursor: 'pointer' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{opt.name}</div>
-                        <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)' }}>{opt.sub}</div>
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace' }}>{opt.apy}% APY*</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginBottom: 10, lineHeight: 1.6 }}>
-                  * APY rates are illustrative only. Actual returns may vary and are not guaranteed. Demo environment.
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <input type="number" placeholder="KAUS amount" value={stakeAmt} onChange={e => setStakeAmt(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 2, background: 'var(--black)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, outline: 'none' }}/>
-                  <button onClick={() => setStakeAmt(String(Math.floor(balance)))} style={{ padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 2, background: 'transparent', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--dim)', cursor: 'pointer' }}>MAX</button>
-                </div>
-                {stakeYield && (
-                  <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dim)', padding: 10, border: '1px solid var(--border)', borderRadius: 2, background: 'var(--black)', marginBottom: 12 }}>
-                    Projected yield: <span style={{ color: 'var(--green)', fontWeight: 500 }}>~{stakeYield} KAUS / mo</span> <span style={{ color: 'var(--dimmer)' }}>(illustrative)</span>
-                  </div>
-                )}
-                <button onClick={() => alert('Demo mode — staking not enabled')} style={{ width: '100%', padding: 12, background: '#0A0A0A', color: '#F9F9F7', border: 'none', borderRadius: 2, fontSize: 12, fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace', cursor: 'pointer' }}>
-                  STAKE KAUS →
+              ))}
+            </div>
+
+            <div style={{ ...card, marginBottom: 32 }}>
+              <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.15em', marginBottom: 16 }}>SEND KAUS</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  value={sendTo}
+                  onChange={e => setSendTo(e.target.value)}
+                  placeholder="Recipient address (0x...)"
+                  style={{ flex: 2, minWidth: 200, background: '#111', border: '1px solid #222', color: '#F0F0EC', padding: '10px 12px', fontSize: 11, ...mono }}
+                />
+                <input
+                  value={sendAmt}
+                  onChange={e => setSendAmt(e.target.value)}
+                  placeholder="Amount"
+                  style={{ flex: 1, minWidth: 100, background: '#111', border: '1px solid #222', color: '#F0F0EC', padding: '10px 12px', fontSize: 11, ...mono }}
+                />
+                <button onClick={sendKaus} disabled={sending} style={{ background: sending ? '#333' : '#00FF88', color: '#000', border: 'none', padding: '10px 24px', fontSize: 12, fontWeight: 700, cursor: sending ? 'default' : 'pointer', ...mono }}>
+                  {sending ? 'SENDING...' : 'SEND'}
                 </button>
               </div>
-
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 2, padding: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: 'var(--dimmer)' }}>FEE DISTRIBUTION (DEMO)</div>
+              {error && <div style={{ marginTop: 8, fontSize: 11, color: '#ff4444' }}>{error}</div>}
+              {status && <div style={{ marginTop: 8, fontSize: 11, color: '#00FF88' }}>{status}</div>}
+              {txHash && (
+                <div style={{ marginTop: 8, fontSize: 10, color: '#555' }}>
+                  TX: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer" style={{ color: '#00FF88' }}>{txHash.slice(0, 20)}...</a>
                 </div>
-                {[
-                  ['Sample distribution', '+403.20 KAUS', true],
-                  ['Next period', 'TBD', false],
-                  ['Your share (demo)', '1/999 (0.1%)', false],
-                  ['Pool (demo)', '402,800 KAUS', false],
-                  ['Annual est.', '~4,838 KAUS*', false],
-                ].map(([k, v, green]) => (
-                  <div key={k as string} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-                    <span style={{ fontSize: 12, color: 'var(--dim)' }}>{k}</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', color: green ? '#1D9E75' : '#0A0A0A' }}>{v}</span>
-                  </div>
-                ))}
-                <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: 'var(--dimmer)', marginTop: 10, lineHeight: 1.6 }}>
-                  * All figures are simulated. Distribution is not guaranteed income.
-                </div>
-                <button onClick={() => alert('Demo mode — rewards not enabled')} style={{ width: '100%', padding: 11, marginTop: 12, background: 'transparent', border: '1px solid var(--border)', borderRadius: 2, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--dim)', cursor: 'pointer' }}>
-                  Claim Rewards →
-                </button>
-              </div>
+              )}
             </div>
-          </div>
-        </main>
+
+            <div style={card}>
+              <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.15em', marginBottom: 16 }}>PURCHASE HISTORY</div>
+              {history.length === 0 ? (
+                <div style={{ fontSize: 11, color: '#333' }}>구매 내역 없음</div>
+              ) : (
+                history.map((p: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #111', fontSize: 11, color: '#888' }}>
+                    <span style={{ color: '#F0F0EC' }}>{p.buyer_wallet?.slice(0, 8)}...{p.buyer_wallet?.slice(-4)}</span>
+                    <span style={{ color: '#00FF88' }}>+{p.amount_kaus} KAUS</span>
+                    <span>${p.amount_usd}</span>
+                    {p.tx_hash && (
+                      <a href={`https://polygonscan.com/tx/${p.tx_hash}`} target="_blank" rel="noopener noreferrer" style={{ color: '#555', textDecoration: 'none', fontSize: 9 }}>PolygonScan →</a>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+
+        <div style={{ marginTop: 32, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <a href="/buy-kaus" style={{ fontSize: 11, color: '#555', textDecoration: 'none', border: '1px solid #1a1a1a', padding: '8px 16px' }}>← BUY KAUS</a>
+          <a href="/liquidity" style={{ fontSize: 11, color: '#555', textDecoration: 'none', border: '1px solid #1a1a1a', padding: '8px 16px' }}>LIQUIDITY POOL →</a>
+          <a href={`https://polygonscan.com/token/${KAUS_CONTRACT}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#555', textDecoration: 'none', border: '1px solid #1a1a1a', padding: '8px 16px' }}>POLYGONSCAN ↗</a>
+        </div>
       </div>
     </div>
   )

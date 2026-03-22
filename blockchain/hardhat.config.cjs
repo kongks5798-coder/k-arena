@@ -20,7 +20,6 @@ module.exports = {
       chainId: 80002,
     },
   },
-  etherscan: {
-    apiKey: { polygon: process.env.POLYGONSCAN_API_KEY || "" }
-  }
+  sourcify: { enabled: true },
+  etherscan: { apiKey: "FP2H7C57WD2MXVSEH18JG27S8G27UZ79VX" }
 };

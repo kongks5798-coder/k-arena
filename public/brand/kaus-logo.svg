@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="28" fill="#080808"/>
+  <polygon points="100,30 148,56 148,108 100,134 52,108 52,56" fill="none" stroke="#00FF88" stroke-width="3"/>
+  <polygon points="100,48 132,64 132,96 100,112 68,96 68,64" fill="none" stroke="#00FF88" stroke-width="1.5" opacity="0.4"/>
+  <text x="100" y="83" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Mono,monospace" font-size="42" font-weight="700" fill="#00FF88">K</text>
+  <text x="100" y="155" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="18" font-weight="700" fill="#00FF88" letter-spacing="8">KAUS</text>
+  <text x="100" y="177" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" fill="#444" letter-spacing="4">POLYGON</text>
+</svg>
