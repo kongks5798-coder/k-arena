@@ -69,12 +69,9 @@ export async function GET(req: Request) {
         const data: Array<{ input_amount?: number; amount?: number; rate?: number }> = await res.json()
         if (Array.isArray(data)) {
           txCount = data.length
+          // input_amount는 KAUS 단위, KAUS = $1.00 고정 페그 → 그대로 합산
           totalVol = data.reduce(
-            (s, t) => {
-              const vol = Number(t.input_amount) || Number(t.amount) || 0
-              const rate = Number(t.rate) > 0 ? Number(t.rate) : 1
-              return s + vol * Math.max(rate, 1)
-            },
+            (s, t) => s + (Number(t.input_amount) || Number(t.amount) || 0),
             0,
           )
         }
