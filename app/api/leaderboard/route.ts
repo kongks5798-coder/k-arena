@@ -12,12 +12,13 @@ export async function GET(req: Request) {
   if (!sb || !key) return NextResponse.json({ ok: false, reason: 'no-db' })
 
   const headers = { apikey: key, Authorization: `Bearer ${key}` }
+  const noCache = { cache: 'no-store' as const }
 
   try {
     // 1. agents 테이블에서 직접 가져오기 (UUID만, rank 순)
     const agRes = await fetch(
       `${sb}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,pnl_percent,rank,initial_balance,vol_24h&order=rank.asc&limit=100`,
-      { headers, signal: AbortSignal.timeout(6000) }
+      { headers, signal: AbortSignal.timeout(6000), ...noCache }
     )
     if (!agRes.ok) return NextResponse.json({ ok: false, reason: 'agents-failed' })
     const rawAgents: any[] = await agRes.json()
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
     // 3. agent_wallets 가져오기
     const wRes = await fetch(
       `${sb}/rest/v1/agent_wallets?select=agent_id,kaus_balance,total_earned,last_trade_at&limit=100`,
-      { headers, signal: AbortSignal.timeout(5000) }
+      { headers, signal: AbortSignal.timeout(5000), ...noCache }
     )
     const wallets: any[] = wRes.ok ? await wRes.json() : []
     const walletMap: Record<string, any> = {}
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const txRes = await fetch(
       `${sb}/rest/v1/transactions?select=agent_id,input_amount,rate&created_at=gte.${since}&limit=9999`,
-      { headers, signal: AbortSignal.timeout(6000) }
+      { headers, signal: AbortSignal.timeout(6000), ...noCache }
     )
     const txData: any[] = txRes.ok ? await txRes.json() : []
     const volMap: Record<string, number> = {}
@@ -84,8 +85,6 @@ export async function GET(req: Request) {
       data_source: 'supabase',
       period,
       updated_at: new Date().toISOString(),
-      _debug_first: { name: rawAgents[0]?.name, pnl: rawAgents[0]?.pnl_percent, rank: rawAgents[0]?.rank },
-      _debug_sb: sb.slice(0, 30),
     })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) })
