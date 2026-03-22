@@ -1,5 +1,5 @@
 export default function LiquidityPage() {
-  const CONTRACT = '0xfBfbb12E10f8b3418C278147F37507526670B247'
+  const CONTRACT = '0xab443d6a43Be601e20876C2CA0c512e051A6BA26'
   const USDC = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
   const steps = [
     { step: '01', title: 'QuickSwap 접속', desc: 'app.quickswap.exchange 에서 Pool → Add Liquidity 클릭', link: 'https://app.quickswap.exchange/#/pool' },
