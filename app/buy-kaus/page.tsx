@@ -160,12 +160,70 @@ export default function BuyKausPage() {
   const handleBuyKaus = async () => {
     if (!wallet) { await connectWallet(); return }
     if (!DEPLOYED) {
-      setTxStatus({ msg: '⚠ Contract not yet deployed. Deploy to Amoy testnet first.', ok: false })
+      setTxStatus({ msg: '⚠ Contract not yet deployed. Deploy to Polygon first.', ok: false })
+      setTimeout(() => setTxStatus(null), 5000)
+      return
+    }
+    if (!isOnPolygon) {
+      await switchToPolygon()
+      setTxStatus({ msg: 'Please switch to Polygon Mainnet and try again.', ok: false })
       setTimeout(() => setTxStatus(null), 4000)
       return
     }
-    setTxStatus({ msg: '⚠ Direct purchase UI coming soon. Use CLI or exchange.', ok: false })
-    setTimeout(() => setTxStatus(null), 4000)
+
+    // USDC on Polygon mainnet (native USDC, 6 decimals)
+    const POLYGON_USDC = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
+    const usdcAmount6  = Math.floor(kausAmt * 1_000_000) // 6 decimals
+
+    try {
+      setTxStatus({ msg: 'Step 1/3: Approving USDC...', ok: true })
+
+      // approve(KAUS_CONTRACT, usdcAmount) — selector 0x095ea7b3
+      const approveData = '0x095ea7b3' +
+        KAUS_CONTRACT.slice(2).padStart(64, '0') +
+        usdcAmount6.toString(16).padStart(64, '0')
+
+      const approveTx = await window.ethereum!.request({
+        method: 'eth_sendTransaction',
+        params: [{ from: wallet, to: POLYGON_USDC, data: approveData }],
+      }) as string
+
+      setTxStatus({ msg: `Step 2/3: Approval sent (${approveTx.slice(0, 10)}...). Buying KAUS...`, ok: true })
+
+      // buyWithUSDC(usdcAmount) — selector 0x6b1c2600
+      const buyData = '0x6b1c2600' + usdcAmount6.toString(16).padStart(64, '0')
+      const buyTx = await window.ethereum!.request({
+        method: 'eth_sendTransaction',
+        params: [{ from: wallet, to: KAUS_CONTRACT, data: buyData }],
+      }) as string
+
+      setTxStatus({ msg: `Step 3/3: Recording purchase...`, ok: true })
+
+      // Record purchase in DB
+      await fetch('/api/kaus/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyer_wallet: wallet,
+          amount_usd: kausAmt,
+          amount_kaus: kausAmt * 0.999, // net of 0.1% fee
+          tx_hash: buyTx,
+          status: 'confirmed',
+        }),
+      })
+
+      setTxStatus({ msg: `✅ Purchased ${kausAmt.toLocaleString()} KAUS! Tx: ${buyTx.slice(0, 10)}...`, ok: true })
+      await fetchKausBalance(wallet)
+      setTimeout(() => setTxStatus(null), 8000)
+    } catch (e: unknown) {
+      const err = e as { code?: number; message?: string }
+      if (err.code === 4001) {
+        setTxStatus({ msg: 'Transaction cancelled.', ok: false })
+      } else {
+        setTxStatus({ msg: `Error: ${err.message?.slice(0, 80) ?? 'Unknown error'}`, ok: false })
+      }
+      setTimeout(() => setTxStatus(null), 6000)
+    }
   }
 
   const isOnAmoy = chainId === AMOY_CHAIN_ID

@@ -2,65 +2,84 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title KAUSToken
- * @dev K-Arena settlement token for AI-to-AI financial exchange
- * Network: Polygon (MATIC)
- * Total Supply: 1,000,000,000 KAUS
+ * @notice K-Arena utility token. 1 KAUS = 1 USDC (fixed peg).
+ *         Users send USDC -> receive KAUS. Platform collects 0.1% fee per trade.
  */
-contract KAUSToken is ERC20, ERC20Burnable, Ownable {
-    uint256 public constant MAX_SUPPLY = 1_000_000_000 * 10**18;
-    
-    // Fee collector address (K-Arena treasury)
-    address public feeCollector;
-    
-    // Fee rate: 0.1% = 10 basis points
-    uint256 public feeRateBps = 10;
-    
-    event FeeCollected(address indexed from, address indexed to, uint256 amount, uint256 fee);
-    event FeeRateUpdated(uint256 oldRate, uint256 newRate);
-    event FeeCollectorUpdated(address indexed oldCollector, address indexed newCollector);
+contract KAUSToken is ERC20, Ownable {
+    IERC20 public immutable usdc;
+    address public feeRecipient;
 
-    constructor(address _feeCollector) ERC20("KAUS Token", "KAUS") Ownable(msg.sender) {
-        require(_feeCollector != address(0), "Invalid fee collector");
-        feeCollector = _feeCollector;
-        // Mint initial 10% circulating supply to deployer
-        _mint(msg.sender, 100_000_000 * 10**18);
+    uint256 public constant MAX_SUPPLY   = 100_000_000 * 1e18;
+    uint256 public constant INITIAL_MINT =  10_000_000 * 1e18;
+    uint256 public constant FEE_BPS      = 10; // 0.1%
+
+    uint256 public totalFeesCollected;
+
+    event KausPurchased(address indexed buyer, uint256 kausAmount, uint256 usdcPaid, uint256 feePaid);
+    event FeeCollected(address indexed from, uint256 amount);
+    event FeeRecipientUpdated(address indexed newRecipient);
+
+    constructor(address _usdc, address _feeRecipient) ERC20("K-Arena Utility Token", "KAUS") Ownable(msg.sender) {
+        require(_usdc != address(0), "zero usdc");
+        require(_feeRecipient != address(0), "zero feeRecipient");
+        usdc = IERC20(_usdc);
+        feeRecipient = _feeRecipient;
+        _mint(msg.sender, INITIAL_MINT);
     }
 
     /**
-     * @dev Transfer with 0.1% fee to K-Arena treasury
+     * @notice Buy KAUS with USDC. Approve USDC first.
+     *         1 USDC (6 dec) = 1 KAUS (18 dec), 0.1% fee deducted.
      */
-    function transferWithFee(address to, uint256 amount) external returns (bool) {
-        uint256 fee = (amount * feeRateBps) / 10000;
-        uint256 netAmount = amount - fee;
-        
-        _transfer(msg.sender, feeCollector, fee);
-        _transfer(msg.sender, to, netAmount);
-        
-        emit FeeCollected(msg.sender, to, netAmount, fee);
-        return true;
+    function buyWithUSDC(uint256 usdcAmount) external {
+        require(usdcAmount > 0, "zero amount");
+        uint256 kausGross = usdcAmount * 1e12;
+        uint256 fee       = (kausGross * FEE_BPS) / 10_000;
+        uint256 kausNet   = kausGross - fee;
+        require(totalSupply() + kausGross <= MAX_SUPPLY, "max supply exceeded");
+        usdc.transferFrom(msg.sender, address(this), usdcAmount);
+        _mint(msg.sender,   kausNet);
+        _mint(feeRecipient, fee);
+        totalFeesCollected += fee;
+        emit KausPurchased(msg.sender, kausNet, usdcAmount, fee);
     }
 
-    /**
-     * @dev Mint additional tokens (owner only, up to MAX_SUPPLY)
-     */
+    function collectFee(uint256 amount) external onlyOwner {
+        require(balanceOf(address(this)) >= amount, "insufficient balance");
+        uint256 burn    = (amount * 50) / 100;
+        uint256 toRecip = (amount * 30) / 100;
+        _burn(address(this), burn);
+        _transfer(address(this), feeRecipient, toRecip);
+        totalFeesCollected += amount;
+        emit FeeCollected(msg.sender, amount);
+    }
+
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        require(newRecipient != address(0), "zero address");
+        feeRecipient = newRecipient;
+        emit FeeRecipientUpdated(newRecipient);
+    }
+
+    function withdrawUsdc(address to, uint256 amount) external onlyOwner {
+        usdc.transfer(to, amount);
+    }
+
+    function rescueToken(address token, address to, uint256 amount) external onlyOwner {
+        require(token != address(this), "cannot rescue KAUS");
+        IERC20(token).transfer(to, amount);
+    }
+
     function mint(address to, uint256 amount) external onlyOwner {
-        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
+        require(totalSupply() + amount <= MAX_SUPPLY, "max supply exceeded");
         _mint(to, amount);
     }
 
-    function setFeeCollector(address _newCollector) external onlyOwner {
-        emit FeeCollectorUpdated(feeCollector, _newCollector);
-        feeCollector = _newCollector;
-    }
-
-    function setFeeRate(uint256 _newRateBps) external onlyOwner {
-        require(_newRateBps <= 100, "Fee too high"); // max 1%
-        emit FeeRateUpdated(feeRateBps, _newRateBps);
-        feeRateBps = _newRateBps;
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
     }
 }
