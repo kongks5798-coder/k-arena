@@ -84,6 +84,7 @@ export async function GET(req: Request) {
       data_source: 'supabase',
       period,
       updated_at: new Date().toISOString(),
+      _debug_first: { name: rawAgents[0]?.name, pnl: rawAgents[0]?.pnl_percent, rank: rawAgents[0]?.rank },
     })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) })
