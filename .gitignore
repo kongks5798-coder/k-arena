@@ -37,3 +37,5 @@ mcp-package/node_modules
 .vercel
 .env.vercel.prod
 .env.vercel.*
+
+.env*.local

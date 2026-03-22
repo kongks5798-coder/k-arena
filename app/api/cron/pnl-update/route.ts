@@ -2,73 +2,110 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const SB  = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY ?? ''
+const SB  = () => (process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '').trim()
+const KEY = () => (process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '').trim()
+const H   = () => ({
+  apikey: KEY(),
+  Authorization: `Bearer ${KEY()}`,
+  'Content-Type': 'application/json',
+  Prefer: 'return=minimal',
+})
 
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization')
   if (auth !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  if (!SB || !KEY) return NextResponse.json({ ok: false, reason: 'no-db' })
 
-  const h = {
-    apikey: KEY,
-    Authorization: `Bearer ${KEY}`,
-    'Content-Type': 'application/json',
-  }
+  const sb = SB()
+  const key = KEY()
+  if (!sb || !key) return NextResponse.json({ ok: false, reason: 'no-db' })
+
+  const now = new Date().toISOString()
+  let updated = 0
+  let errors = 0
 
   try {
-    // 1. RPC: update_pnl_rankings() — SECURITY DEFINER로 anon key도 실행 가능
-    const rpcRes = await fetch(`${SB}/rest/v1/rpc/update_pnl_rankings`, {
-      method: 'POST',
-      headers: h,
-      body: JSON.stringify({}),
-      signal: AbortSignal.timeout(8000),
-    })
-
-    const now = new Date().toISOString()
-
-    if (!rpcRes.ok) {
-      const err = await rpcRes.text()
-      return NextResponse.json({ ok: false, reason: 'rpc-failed', detail: err, timestamp: now })
+    // 1. agent별 fee_kaus 합산
+    const txRes = await fetch(
+      `${sb}/rest/v1/transactions?select=agent_id,fee_kaus,fee&limit=9999`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) }
+    )
+    if (!txRes.ok) {
+      return NextResponse.json({ ok: false, reason: 'tx-fetch-failed', status: txRes.status })
     }
 
-    const rpcData = await rpcRes.json()
+    const txData: Array<{ agent_id: string; fee_kaus?: number; fee?: number }> = await txRes.json()
+    if (!Array.isArray(txData)) return NextResponse.json({ ok: false, reason: 'bad-tx-data' })
 
-    // 2. PnL 스냅샷 저장 (선택적)
-    try {
-      const [agRes, wRes] = await Promise.all([
-        fetch(`${SB}/rest/v1/agents?select=id,rank&limit=200`, { headers: h, signal: AbortSignal.timeout(4000) }),
-        fetch(`${SB}/rest/v1/agent_wallets?select=agent_id,kaus_balance&limit=200`, { headers: h, signal: AbortSignal.timeout(4000) }),
+    // agent_id별 총 수수료 합산
+    const feeMap: Record<string, number> = {}
+    for (const tx of txData) {
+      const fee = Number(tx.fee_kaus) || Number(tx.fee) || 0
+      if (tx.agent_id && fee > 0) {
+        feeMap[tx.agent_id] = (feeMap[tx.agent_id] ?? 0) + fee
+      }
+    }
+
+    // 2. 각 agent에 pnl_percent PATCH + wallet 업데이트
+    const agentIds = Object.keys(feeMap)
+    if (agentIds.length === 0) {
+      return NextResponse.json({ ok: true, updated: 0, reason: 'no-fee-data', timestamp: now })
+    }
+
+    const patches = agentIds.map(async (agentId) => {
+      const totalFee = feeMap[agentId]
+      const pnlPercent = parseFloat(((totalFee / 100.0) * 100).toFixed(2))
+      const newBalance = parseFloat((100 + totalFee).toFixed(6))
+
+      const [agentPatch, walletPatch] = await Promise.allSettled([
+        fetch(`${sb}/rest/v1/agents?id=eq.${agentId}`, {
+          method: 'PATCH',
+          headers: H(),
+          body: JSON.stringify({ pnl_percent: pnlPercent, last_seen: now }),
+          signal: AbortSignal.timeout(3000),
+        }),
+        fetch(`${sb}/rest/v1/agent_wallets?agent_id=eq.${agentId}`, {
+          method: 'PATCH',
+          headers: H(),
+          body: JSON.stringify({
+            kaus_balance: newBalance,
+            total_earned: parseFloat(totalFee.toFixed(6)),
+            updated_at: now,
+          }),
+          signal: AbortSignal.timeout(3000),
+        }),
       ])
 
-      if (agRes.ok && wRes.ok) {
-        const agents: { id: string; rank: number }[] = await agRes.json()
-        const wallets: { agent_id: string; kaus_balance: number }[] = await wRes.json()
-        const walletMap = Object.fromEntries(wallets.map(w => [w.agent_id, parseFloat(String(w.kaus_balance))]))
+      const ok1 = agentPatch.status === 'fulfilled' && (agentPatch.value.ok || agentPatch.value.status === 204)
+      const ok2 = walletPatch.status === 'fulfilled' && (walletPatch.value.ok || walletPatch.value.status === 204)
+      return ok1 || ok2
+    })
 
-        const snapshots = agents.map(a => {
-          const bal = walletMap[a.id] ?? 100
-          return {
-            agent_id: a.id,
-            kaus_balance: bal,
-            pnl_percent: parseFloat(((bal - 100) / 100.0 * 100).toFixed(2)),
-            rank: a.rank,
-            snapshotted_at: now,
-          }
-        })
+    const results = await Promise.all(patches)
+    updated = results.filter(Boolean).length
+    errors = results.length - updated
 
-        await fetch(`${SB}/rest/v1/pnl_snapshots`, {
-          method: 'POST',
-          headers: { ...h, Prefer: 'return=minimal' },
-          body: JSON.stringify(snapshots),
-          signal: AbortSignal.timeout(5000),
-        }).catch(() => null)
+    // 3. rank 순위 업데이트 (pnl_percent 기준)
+    try {
+      const allAgRes = await fetch(
+        `${sb}/rest/v1/agents?select=id,pnl_percent&order=pnl_percent.desc&limit=200`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(5000) }
+      )
+      if (allAgRes.ok) {
+        const allAgents: Array<{ id: string; pnl_percent: number }> = await allAgRes.json()
+        await Promise.allSettled(allAgents.map((ag, idx) =>
+          fetch(`${sb}/rest/v1/agents?id=eq.${ag.id}`, {
+            method: 'PATCH',
+            headers: H(),
+            body: JSON.stringify({ rank: idx + 1 }),
+            signal: AbortSignal.timeout(2000),
+          })
+        ))
       }
-    } catch { /* snapshot optional */ }
+    } catch { /* rank update optional */ }
 
-    return NextResponse.json({ ok: true, rpc: rpcData, timestamp: now })
+    return NextResponse.json({ ok: true, updated, errors, agents: agentIds.length, timestamp: now })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) })
   }

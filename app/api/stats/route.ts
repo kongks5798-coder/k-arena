@@ -50,7 +50,8 @@ export async function GET() {
           totalVol = data.reduce(
             (s, t) => {
               const vol = Number(t.input_amount) || Number(t.amount) || 0
-              return s + vol * (Number(t.rate) > 0 ? Number(t.rate) : 1)
+              const rate = Number(t.rate) > 0 ? Number(t.rate) : 1
+              return s + vol * Math.max(rate, 1)
             },
             0,
           )
@@ -62,7 +63,7 @@ export async function GET() {
     try {
       const today = new Date(); today.setUTCHours(0,0,0,0)
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${today.toISOString()}&limit=9999`,
+        `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${today.toISOString()}&agent_id=not.is.null&limit=9999`,
         { headers: h, signal: AbortSignal.timeout(4000) },
       )
       if (res.ok) {

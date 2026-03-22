@@ -206,9 +206,16 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             agent_id,
             pair,
+            from_currency: fromCurrency,
+            to_currency: toCurrency,
             direction,
             amount: parseFloat(amount),
+            input_amount: parseFloat(amount),
+            output_amount: outputAmount,
+            rate: execPrice,
             fee: feeKaus,
+            fee_kaus: feeKaus,
+            settlement_ms: settlementMs,
             status: 'CONFIRMED',
           }),
           signal: AbortSignal.timeout(5000),
@@ -251,19 +258,6 @@ export async function POST(req: NextRequest) {
               signal: AbortSignal.timeout(2000),
             }),
       ])
-
-      console.log('[exchange] SB URL:', supabaseUrl?.slice(0, 50))
-      // Log DB write results for debugging
-      const txResult = dbResults[0]
-      if (txResult.status === 'rejected') {
-        console.error('[exchange] TX INSERT rejected:', txResult.reason)
-      } else {
-        const r = txResult.value
-        if (!r.ok && r.status !== 201 && r.status !== 204) {
-          const body = await r.text().catch(() => '?')
-          console.error(`[exchange] TX INSERT failed HTTP ${r.status}:`, body)
-        }
-      }
 
       return NextResponse.json({
         success: true, tx_id: txId, agent_id, pair, direction,

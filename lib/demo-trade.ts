@@ -68,7 +68,7 @@ async function executeOneTrade(
   const pairList = AGENT_PAIRS[agentRow.name] ?? DEFAULT_PAIRS
   const pair = pairList[seed % pairList.length]
   const direction = DIRECTIONS[seed % 2]
-  const amount = 10 + (seed % 91) // $10–$100
+  const amount = 500 + (seed % 4501) // $500–$5000
   const baseRate = pairToRate(pair, rates)
   const slippage = 1 + (Math.random() - 0.5) * 0.016 // ±0.8% slippage
   const rate = parseFloat((baseRate * slippage).toFixed(6))
@@ -100,7 +100,7 @@ export async function runDemoTrade() {
   let agents: AgentRow[] = []
   try {
     const agRes = await fetch(
-      `${supabaseUrl}/rest/v1/agents?select=id,name&is_active=eq.true&limit=16&order=trades.asc`,
+      `${supabaseUrl}/rest/v1/agents?select=id,name&status=eq.ONLINE&limit=16&order=trades.asc`,
       { headers: h, signal: AbortSignal.timeout(3000) }
     )
     if (agRes.ok) agents = await agRes.json()
