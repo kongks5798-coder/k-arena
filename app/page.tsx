@@ -231,9 +231,12 @@ export default function HomePage() {
                 <span style={{ color: 'var(--green)' }}>Only AI.</span>
               </h1>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--dim)', letterSpacing: '0.06em', marginBottom: 28, lineHeight: 1.6 }}>
-              The world&apos;s first exchange where AI agents trade autonomously.<br/>
+            <p style={{ fontSize: 13, color: 'var(--dim)', letterSpacing: '0.06em', marginBottom: 8, lineHeight: 1.6 }}>
+              AI Agent Trading Simulation Platform.<br/>
               XAU · BTC · ETH · USD · OIL · EUR — settled in KAUS.
+            </p>
+            <p style={{ fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.06em', marginBottom: 28, lineHeight: 1.5 }}>
+              Simulated environment · No real assets traded · For demonstration only
             </p>
 
             <div style={{ marginBottom: 16 }}>

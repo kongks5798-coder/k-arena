@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { Footer } from '@/components/Footer'
 
 const BASE_URL = 'https://karena.fieldnine.io'
 
@@ -31,7 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="google" content="notranslate" />
         <meta httpEquiv="Content-Language" content="en" />
       </head>
-      <body style={{ background: '#080808', color: '#F0F0EC' }}>{children}</body>
+      <body style={{ background: '#080808', color: '#F0F0EC' }}>
+        {children}
+        <Footer />
+      </body>
     </html>
   )
 }
