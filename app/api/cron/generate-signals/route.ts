@@ -295,11 +295,17 @@ export async function GET() {
   }
 
   // 6. Build one signal per agent, cycling through asset pairs
+  const FALLBACK_PRICES: Record<string, number> = {
+    BTC: 87420,
+    ETH: 3318,
+    XAU: 2352,
+    OIL: 81.3,
+  }
   const assets = Object.keys(ASSET_PAIRS) // BTC, ETH, XAU, OIL
   const signals = signalAgents.map((agent, i) => {
     const asset = assets[i % assets.length]
     const pair = ASSET_PAIRS[asset]
-    const price = priceMap[asset] ?? 100
+    const price = priceMap[asset] ?? FALLBACK_PRICES[asset] ?? 0
     const change = changeMap[asset] ?? 0
     return buildPersonalitySignal(agent, pair, price, change)
   })
