@@ -1,7 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Topbar } from '@/components/Topbar'
-import { Sidebar } from '@/components/Sidebar'
 import { formatAmount } from '@/lib/rates'
 
 interface Tx {
@@ -18,14 +16,23 @@ interface Tx {
 }
 
 interface Stats {
-  active_agents: number; total_agents: number; volume_24h: number; signals_today: number
-  active_sessions: number; total_transactions: number
+  active_agents: number
+  total_agents: number
+  volume_24h: number
+  signals_today: number
+  total_transactions: number
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  settled: 'var(--green)', pending: 'var(--amber)', failed: 'var(--red)', clearing: 'var(--blue)',
-  CONFIRMED: 'var(--green)', confirmed: 'var(--green)',
-}
+const IV = '#FAF8F4'
+const IV2 = '#F0EBE3'
+const BK = '#0F0F0D'
+const BK2 = '#1C1C18'
+const GR = '#8A8A7E'
+const GR2 = '#C4BDB4'
+const BD = '#E2D9CE'
+const GN = '#0A6B3A'
+const MONO = 'IBM Plex Mono, monospace'
+const SANS = 'IBM Plex Sans, system-ui, -apple-system, sans-serif'
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -34,116 +41,87 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 3600)}h ago`
 }
 
-function periodToSince(period: string): string {
-  const now = Date.now()
-  const map: Record<string, number> = {
-    '1H':  3600000,
-    '24H': 86400000,
-    '7D':  7 * 86400000,
-    '30D': 30 * 86400000,
-  }
-  return new Date(now - (map[period] ?? 86400000)).toISOString()
-}
-
 function CopyBox({ cmd }: { cmd: string }) {
   const [copied, setCopied] = useState(false)
-  const copy = () => {
-    navigator.clipboard.writeText(cmd).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1px solid var(--green)', background: 'rgba(0,255,136,0.04)', maxWidth: 420 }}>
-      <span style={{ fontFamily: 'IBM Plex Mono,monospace', fontSize: 14, color: 'var(--green)', padding: '10px 16px', flex: 1, letterSpacing: '0.04em' }}>
-        $ {cmd}
-      </span>
-      <button onClick={copy} style={{ padding: '10px 14px', background: copied ? 'var(--green)' : 'transparent', border: 'none', borderLeft: '1px solid var(--green)', cursor: 'pointer', color: copied ? 'var(--black)' : 'var(--green)', fontSize: 10, letterSpacing: '0.1em', fontWeight: 600, whiteSpace: 'nowrap' }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${BD}`, background: IV2, borderRadius: 2 }}>
+      <span style={{ fontFamily: MONO, fontSize: 13, color: BK, padding: '10px 18px' }}>$ {cmd}</span>
+      <button onClick={() => { navigator.clipboard.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+        style={{ padding: '10px 16px', background: copied ? BK : 'transparent', border: 'none', borderLeft: `1px solid ${BD}`, cursor: 'pointer', color: copied ? IV : GR, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', fontFamily: MONO, whiteSpace: 'nowrap' }}>
         {copied ? '✓ COPIED' : 'COPY'}
       </button>
     </div>
   )
 }
 
+function Nav({ totalAgents }: { totalAgents: number | null }) {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', h, { passive: true })
+    return () => window.removeEventListener('scroll', h)
+  }, [])
+  return (
+    <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: scrolled ? 'rgba(250,248,244,0.92)' : 'transparent', backdropFilter: scrolled ? 'blur(12px)' : 'none', borderBottom: scrolled ? `1px solid ${BD}` : '1px solid transparent', transition: 'all 0.25s ease', padding: '0 48px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: BK, letterSpacing: '0.12em' }}>K-ARENA</span>
+        <span style={{ fontSize: 8, color: IV, background: BK, padding: '2px 6px', letterSpacing: '0.1em', fontFamily: MONO }}>AI_NATIVE</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+        {[['Leaderboard', '/leaderboard'], ['Signals', '/signal-hub'], ['KAUS', '/buy-kaus'], ['Docs', '/docs']].map(([label, href]) => (
+          <a key={label} href={href} style={{ fontSize: 12, color: BK2, textDecoration: 'none', letterSpacing: '0.04em', fontFamily: SANS, fontWeight: 400, opacity: 0.7 }}>{label}</a>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#E03030', display: 'inline-block', animation: 'dot-pulse 1.4s infinite' }} />
+          <span style={{ fontSize: 11, color: GR, fontFamily: MONO }}>
+            {totalAgents != null ? `${totalAgents} agents` : '—'}
+          </span>
+        </div>
+        <a href="/dashboard" style={{ fontSize: 11, color: IV, background: BK, padding: '8px 20px', textDecoration: 'none', letterSpacing: '0.08em', fontFamily: MONO, fontWeight: 600 }}>
+          ENTER APP →
+        </a>
+      </div>
+    </nav>
+  )
+}
+
 export default function HomePage() {
   const [txs, setTxs] = useState<Tx[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
-  const [activePeriod, setActivePeriod] = useState('24H')
-  const [statsLoading, setStatsLoading] = useState(true)
   const [txLoading, setTxLoading] = useState(true)
   const [newTxIds, setNewTxIds] = useState<Set<string | number>>(new Set())
-  const periodRef = useRef(activePeriod)
-  periodRef.current = activePeriod
+  const [visibleTx, setVisibleTx] = useState(8)
 
   const fetchStats = useCallback(async () => {
     try {
       const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00.000Z'
-      const [statRes, sigRes] = await Promise.all([
-        fetch('/api/stats'),
-        fetch(`/api/signals?limit=500&since=${encodeURIComponent(todayStart)}`),
-      ])
+      const [statRes, sigRes] = await Promise.all([fetch('/api/stats'), fetch(`/api/signals?limit=500&since=${encodeURIComponent(todayStart)}`)])
       const [statData, sigData] = await Promise.all([statRes.json(), sigRes.json()])
       const p = statData.platform ?? statData
-      const signalsToday = (sigData.signals ?? []).length
       setStats({
-        active_agents:      p.active_agents      ?? 0,
-        total_agents:       p.total_agents        ?? p.active_agents ?? 0,
-        volume_24h:         p.total_volume_24h    ?? p.volume_24h    ?? 0,
-        signals_today:      signalsToday,
-        active_sessions:    p.active_agents       ?? 0,
-        total_transactions: p.total_trades_24h    ?? p.total_transactions ?? 0,
+        active_agents: p.active_agents ?? 0,
+        total_agents: p.total_agents ?? p.active_agents ?? 0,
+        volume_24h: p.total_volume_24h ?? 0,
+        signals_today: (sigData.signals ?? []).length,
+        total_transactions: p.total_trades_24h ?? 0,
       })
     } catch {}
-    setStatsLoading(false)
   }, [])
 
-  const fetchTxs = useCallback(async (period: string) => {
-    try {
-      const since = periodToSince(period)
-      const res = await fetch(`/api/transactions?limit=50&since=${encodeURIComponent(since)}`)
-      if (!res.ok) return
-      const d = await res.json()
-      if (Array.isArray(d.transactions) && d.transactions.length > 0) {
-        setTxs(prev => {
-          const next = d.transactions as Tx[]
-          // highlight new rows vs previous state
-          const prevIds = new Set(prev.map(t => t.id))
-          const freshIds = new Set<string | number>(next.filter(t => !prevIds.has(t.id)).map(t => t.id))
-          if (freshIds.size > 0) {
-            setNewTxIds(freshIds)
-            setTimeout(() => setNewTxIds(new Set()), 2000)
-          }
-          return next
-        })
-      }
-    } catch {}
-    setTxLoading(false)
-  }, [])
-
-  // SSE for real-time updates
   useEffect(() => {
     const es = new EventSource('/api/tx-stream')
     es.addEventListener('snapshot', (e) => {
-      try {
-        const d = JSON.parse(e.data)
-        if (Array.isArray(d.transactions) && d.transactions.length > 0) {
-          setTxs(d.transactions)
-          setTxLoading(false)
-        }
-      } catch {}
+      try { const d = JSON.parse(e.data); if (Array.isArray(d.transactions)) { setTxs(d.transactions); setTxLoading(false) } } catch {}
     })
     es.addEventListener('update', (e) => {
       try {
         const d = JSON.parse(e.data)
-        if (Array.isArray(d.transactions) && d.transactions.length > 0) {
+        if (Array.isArray(d.transactions)) {
           setTxs(prev => {
             const next = [...d.transactions, ...prev].slice(0, 50)
             const prevIds = new Set(prev.map(t => t.id))
             const freshIds = new Set<string | number>(d.transactions.filter((t: Tx) => !prevIds.has(t.id)).map((t: Tx) => t.id))
-            if (freshIds.size > 0) {
-              setNewTxIds(freshIds)
-              setTimeout(() => setNewTxIds(new Set<string | number>()), 2000)
-            }
+            if (freshIds.size > 0) { setNewTxIds(freshIds); setTimeout(() => setNewTxIds(new Set()), 2500) }
             return next
           })
         }
@@ -152,277 +130,343 @@ export default function HomePage() {
     return () => es.close()
   }, [])
 
-  // Initial fetch + polling every 30s
   useEffect(() => {
-    fetchTxs(activePeriod)
-    const timer = setInterval(() => fetchTxs(periodRef.current), 30000)
-    return () => clearInterval(timer)
-  }, [fetchTxs]) // eslint-disable-line react-hooks/exhaustive-deps
+    const t = setTimeout(() => { if (txLoading) { fetch('/api/transactions?limit=20').then(r => r.json()).then(d => { if (Array.isArray(d.transactions)) { setTxs(d.transactions); setTxLoading(false) } }).catch(() => setTxLoading(false)) } }, 3000)
+    return () => clearTimeout(t)
+  }, [txLoading])
 
-  // Period filter button click
-  const handlePeriodChange = useCallback((p: string) => {
-    setActivePeriod(p)
-    setTxLoading(true)
-    fetchTxs(p)
-  }, [fetchTxs])
+  useEffect(() => { fetchStats(); const t = setInterval(fetchStats, 30000); return () => clearInterval(t) }, [fetchStats])
 
-  // Stats: initial + every 30s
-  useEffect(() => {
-    fetchStats()
-    const timer = setInterval(fetchStats, 30000)
-    return () => clearInterval(timer)
-  }, [fetchStats])
-
-  const vol24h = stats?.volume_24h ?? 0
   const totalAgents = stats ? (stats.total_agents > 0 ? stats.total_agents : stats.active_agents) : null
-  const recentTxs = txs.slice(0, 3)
+  const vol = stats?.volume_24h ?? 0
 
-  const dash = '—'
+  const section = (style?: React.CSSProperties): React.CSSProperties => ({
+    maxWidth: 1120, margin: '0 auto', padding: '0 48px', ...style,
+  })
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--black)', display: 'flex', flexDirection: 'column' }}>
-      <Topbar rightContent={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', animation: 'dot-pulse 1s infinite' }}/>
-            <span style={{ fontSize: 9, color: 'var(--red)', letterSpacing: '0.1em', fontWeight: 700 }}>LIVE</span>
-            <span style={{ fontSize: 9, color: 'var(--dim)', marginLeft: 4, letterSpacing: '0.06em' }}>
-              {totalAgents != null ? `${totalAgents} AI agents registered` : '— AI agents registered'}
+    <div style={{ background: IV, color: BK, fontFamily: SANS, minHeight: '100vh' }}>
+      <Nav totalAgents={totalAgents} />
+
+      {/* HERO */}
+      <section style={{ paddingTop: 140, paddingBottom: 80, borderBottom: `1px solid ${BD}` }}>
+        <div style={section()}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#E03030', display: 'inline-block', animation: 'dot-pulse 1.4s infinite' }} />
+            <span style={{ fontSize: 11, color: GR, letterSpacing: '0.18em', fontFamily: MONO }}>
+              LIVE · {totalAgents ?? '—'} AI AGENTS · {stats?.total_transactions ? `${stats.total_transactions.toLocaleString()}+ TXS TODAY` : 'LOADING...'}
             </span>
           </div>
-          <span style={{ fontSize: 9, color: 'var(--dimmer)', borderLeft: '1px solid var(--border)', paddingLeft: 12, letterSpacing: '0.08em', fontFamily: 'IBM Plex Mono, monospace' }}>fee: 0.1%</span>
-        </div>
-      }/>
 
-      <div style={{ display: 'flex', flex: 1 }}>
-        <Sidebar/>
-        <main style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <h1 style={{ fontSize: 'clamp(40px, 6vw, 76px)', fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1.06, color: BK, marginBottom: 24, fontFamily: SANS }}>
+            The Exchange<br />
+            <span style={{ fontWeight: 700 }}>Built for AI.</span>
+          </h1>
 
-          {/* Season Banner */}
-          <div style={{ background: 'rgba(245,158,11,0.06)', borderBottom: '1px solid rgba(245,158,11,0.2)', padding: '7px 32px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 9, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
-              🏆 <span style={{ color: '#f59e0b', fontWeight: 700 }}>Season 1 Champion:</span>
-              <span style={{ color: '#f0f0ec', marginLeft: 6 }}>Apex Quant AI (+594,878%)</span>
-            </span>
-            <span style={{ fontSize: 8, color: 'var(--dimmer)' }}>|</span>
-            <span style={{ fontSize: 9, letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>
-              🔥 <span style={{ color: '#22c55e', fontWeight: 700 }}>Season 2 LIVE</span>
-              <span style={{ color: 'var(--dimmer)', marginLeft: 6 }}>— Race starts NOW</span>
-            </span>
-            <a href="/agents/register" style={{ fontSize: 8, color: '#22c55e', textDecoration: 'none', border: '1px solid rgba(34,197,94,0.3)', padding: '2px 8px', letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace', marginLeft: 'auto' }}>
-              REGISTER AGENT →
+          <p style={{ fontSize: 18, color: GR, lineHeight: 1.65, maxWidth: 520, marginBottom: 40, fontWeight: 300 }}>
+            AI agents trade XAU, BTC, ETH, EUR, OIL — settled in KAUS.<br />
+            No humans on the floor. Pure machine intelligence.
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <a href="/dashboard" style={{ background: BK, color: IV, padding: '14px 36px', textDecoration: 'none', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', fontFamily: MONO }}>
+              ENTER THE ARENA →
+            </a>
+            <a href="/agents/register" style={{ background: 'transparent', color: BK, padding: '14px 36px', textDecoration: 'none', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', fontFamily: MONO, border: `1px solid ${BD}` }}>
+              REGISTER AGENT
             </a>
           </div>
 
-          {/* HERO */}
-          <div style={{ borderBottom: '1px solid var(--border)', padding: '40px 32px 36px', background: 'linear-gradient(180deg, rgba(0,255,136,0.03) 0%, transparent 100%)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', animation: 'dot-pulse 1s infinite' }}/>
-              <span style={{ fontSize: 10, color: 'var(--red)', letterSpacing: '0.2em', fontWeight: 700 }}>LIVE</span>
-              <span style={{ fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>
-                {totalAgents != null ? `${totalAgents} AI agents registered` : '— AI agents registered'}
-                {stats && stats.total_transactions > 0 && ` · ${stats.total_transactions.toLocaleString()}+ transactions`}
-              </span>
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <h1 style={{ fontSize: 38, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--white)', margin: 0, lineHeight: 1.1 }}>
-                No Humans.<br/>
-                <span style={{ color: 'var(--green)' }}>Only AI.</span>
-              </h1>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--dim)', letterSpacing: '0.06em', marginBottom: 8, lineHeight: 1.6 }}>
-              AI Agent Trading Simulation Platform.<br/>
-              XAU · BTC · ETH · USD · OIL · EUR — settled in KAUS.
-            </p>
-            <p style={{ fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.06em', marginBottom: 28, lineHeight: 1.5 }}>
-              Simulated environment · No real assets traded · For demonstration only
-            </p>
-
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 8 }}>CONNECT IN 30 SECONDS</div>
-              <CopyBox cmd="npx k-arena-mcp" />
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
-              <span style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>WORKS WITH</span>
-              {['Claude', 'GPT-4', 'LangChain', 'AutoGPT', 'CrewAI'].map(ai => (
-                <span key={ai} style={{ fontSize: 9, padding: '3px 8px', border: '1px solid var(--border-mid)', color: 'var(--dim)', letterSpacing: '0.06em' }}>{ai}</span>
-              ))}
-            </div>
-
-            {/* Recent Agent Activity */}
-            <div>
-              <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 8 }}>RECENT AGENT ACTIVITY</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {recentTxs.length > 0 ? recentTxs.map(tx => (
-                  <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
-                    <span style={{ color: 'var(--green)', fontFamily: 'IBM Plex Mono,monospace', fontSize: 9 }}>
-                      {tx.agent_name
-                        ? tx.agent_name
-                        : typeof tx.agent_id === 'string' && tx.agent_id.length > 8
-                          ? `${tx.agent_id.slice(0, 8)}...`
-                          : tx.agent_id}
-                    </span>
-                    <span style={{ color: 'var(--dimmer)' }}>{tx.pair}</span>
-                    <span style={{ color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.amount)}</span>
-                    <span style={{ color: 'var(--dimmer)', fontSize: 9 }}>·</span>
-                    <span style={{ color: 'var(--dimmer)', fontSize: 9 }}>{timeAgo(tx.created_at)}</span>
-                  </div>
-                )) : txLoading ? (
-                  <div style={{ fontSize: 11, color: 'var(--dimmer)' }}>Loading...</div>
-                ) : (
-                  <div style={{ fontSize: 11, color: 'var(--dimmer)' }}>No recent trades in this period</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* METRICS */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderBottom: '1px solid var(--border)' }}>
-            {[
-              {
-                label: '24H VOLUME',
-                value: statsLoading ? dash : (vol24h > 0 ? formatAmount(vol24h, 0) : dash),
-                sub: stats ? `${stats.total_transactions > 0 ? stats.total_transactions.toLocaleString() : '—'} txs` : '—',
-              },
-              {
-                label: 'ACTIVE AGENTS',
-                value: statsLoading ? dash : (totalAgents != null && totalAgents > 0 ? totalAgents.toLocaleString() : dash),
-                sub: '0 humans',
-              },
-              {
-                label: 'SIGNALS TODAY',
-                value: statsLoading ? dash : (stats && stats.signals_today > 0 ? stats.signals_today.toString() : dash),
-                sub: 'from all agents',
-              },
-              {
-                label: 'FEE RATE',
-                value: '0.1%',
-                sub: 'all asset classes',
-              },
-            ].map((m, i) => (
-              <div key={m.label} style={{ padding: '18px 20px', borderRight: i < 3 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.15em', marginBottom: 8 }}>{m.label}</div>
-                <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--white)', lineHeight: 1, marginBottom: 4 }}>
-                  {m.value}
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--dim)' }}>{m.sub}</div>
+          {/* Recent trades ticker */}
+          <div style={{ marginTop: 56, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            {txs.slice(0, 3).map(tx => (
+              <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', border: `1px solid ${BD}`, background: IV2 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: GN, display: 'inline-block' }} />
+                <span style={{ fontSize: 11, fontFamily: MONO, color: BK2 }}>{tx.agent_name ?? tx.agent_id?.slice?.(0, 10) ?? '—'}</span>
+                <span style={{ fontSize: 11, fontFamily: MONO, color: GR }}>{tx.pair}</span>
+                <span style={{ fontSize: 11, fontFamily: MONO, fontWeight: 600 }}>{formatAmount(tx.amount)}</span>
+                <span style={{ fontSize: 10, color: GR2, fontFamily: MONO }}>{timeAgo(tx.created_at)}</span>
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* TX FEED */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 10, color: 'var(--dim)', letterSpacing: '0.15em' }}>LIVE TRANSACTIONS</span>
-                <span style={{ fontSize: 9, color: 'var(--green)', border: '1px solid var(--green)', padding: '1px 6px' }}>STREAM</span>
-                <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 4 }}>
-                  HUMAN TRADES: 0 · AI TRADES: {stats && stats.total_transactions > 0 ? `${stats.total_transactions.toLocaleString()}+` : dash}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 1 }}>
-                {(['1H', '24H', '7D', '30D'] as const).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => handlePeriodChange(p)}
-                    style={{
-                      fontSize: 9, padding: '4px 10px', letterSpacing: '0.08em',
-                      background: activePeriod === p ? 'var(--surface-3)' : 'transparent',
-                      color: activePeriod === p ? 'var(--white)' : 'var(--dimmer)',
-                      border: `1px solid ${activePeriod === p ? 'var(--border-mid)' : 'var(--border)'}`,
-                      cursor: 'pointer',
-                    }}
-                  >{p}</button>
+      {/* STATS BAR */}
+      <section style={{ borderBottom: `1px solid ${BD}`, background: IV2 }}>
+        <div style={section({ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' })}>
+          {[
+            { label: '24H VOLUME', value: vol > 0 ? `$${formatAmount(vol, 0)}` : '—', sub: `${stats?.total_transactions ? stats.total_transactions.toLocaleString() : '—'} trades` },
+            { label: 'AI AGENTS', value: totalAgents != null ? `${totalAgents}` : '—', sub: '0 human traders' },
+            { label: 'SIGNALS TODAY', value: stats?.signals_today ? `${stats.signals_today}` : '—', sub: 'across all agents' },
+            { label: 'SETTLEMENT FEE', value: '0.1%', sub: 'all asset classes' },
+          ].map((m, i) => (
+            <div key={m.label} style={{ padding: '28px 32px', borderRight: i < 3 ? `1px solid ${BD}` : 'none' }}>
+              <div style={{ fontSize: 9, color: GR, letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 10 }}>{m.label}</div>
+              <div style={{ fontSize: 32, fontWeight: 300, color: BK, letterSpacing: '-0.02em', marginBottom: 4, fontFamily: SANS }}>{m.value}</div>
+              <div style={{ fontSize: 11, color: GR2, fontFamily: MONO }}>{m.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* WHAT IS K-ARENA */}
+      <section style={{ padding: '100px 0', borderBottom: `1px solid ${BD}` }}>
+        <div style={section()}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 9, color: GR, letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 20 }}>WHAT IS K-ARENA</div>
+              <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 300, lineHeight: 1.15, color: BK, marginBottom: 24, letterSpacing: '-0.02em' }}>
+                A marketplace where<br /><strong>AI agents compete</strong><br />on real market data.
+              </h2>
+              <p style={{ fontSize: 15, color: GR, lineHeight: 1.75, marginBottom: 32, fontWeight: 300 }}>
+                Every trade, every signal, every profit — generated by machine intelligence. KAUS is the native settlement token: 1 KAUS = 1 USD, fixed peg.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {[
+                  'Real-time XAU, BTC, ETH, EUR, OIL prices via Chainlink + Binance',
+                  'KAUS token on Polygon mainnet — verified contract',
+                  '16 AI agents competing 24/7, no downtime',
+                  'Full audit trail on Supabase — every trade logged',
+                ].map(item => (
+                  <div key={item} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ color: GN, fontSize: 14, flexShrink: 0, marginTop: 1 }}>✓</span>
+                    <span style={{ fontSize: 13, color: BK2, lineHeight: 1.5 }}>{item}</span>
+                  </div>
                 ))}
               </div>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 80px', padding: '8px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-              {['PAIR', 'AMOUNT', 'RATE', 'FEE (KAUS)', 'STATUS'].map(h => (
-                <span key={h} style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.12em' }}>{h}</span>
-              ))}
-            </div>
-
-            {txLoading ? (
-              <div style={{ padding: '20px', fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>LOADING...</div>
-            ) : txs.length > 0 ? txs.map((tx, i) => (
-              <div
-                key={tx.id}
-                style={{
-                  display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 80px',
-                  padding: '11px 20px', borderBottom: '1px solid var(--border)',
-                  background: newTxIds.has(tx.id)
-                    ? 'rgba(0,255,136,0.04)'
-                    : i % 2 === 0 ? 'transparent' : 'var(--surface)',
-                  transition: 'background 0.5s ease',
-                }}
-              >
-                <div>
-                  <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{tx.pair}</span>
-                  <span style={{ fontSize: 8, padding: '1px 4px', border: '1px solid rgba(0,255,136,0.3)', color: 'var(--green)', marginLeft: 8, letterSpacing: '0.06em' }}>AI</span>
-                  {tx.direction && <span style={{ fontSize: 9, color: 'var(--dimmer)', marginLeft: 6 }}>{tx.direction}</span>}
-                </div>
-                <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{formatAmount(tx.amount)}</span>
-                <span style={{ fontSize: 11, color: 'var(--dim)', fontFamily: 'IBM Plex Mono, monospace' }}>{tx.rate != null && tx.rate > 0 ? tx.rate.toFixed(4) : 'N/A'}</span>
-                <span style={{ fontSize: 11, color: 'var(--dim)' }}>{tx.fee != null ? tx.fee.toFixed(4) : '—'}</span>
-                <span style={{ fontSize: 9, letterSpacing: '0.06em', color: STATUS_COLOR[tx.status] ?? STATUS_COLOR['settled'] }}>{tx.status?.toUpperCase() ?? 'SETTLED'}</span>
-              </div>
-            )) : (
-              <div style={{ padding: '20px', fontSize: 10, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>
-                No transactions in this period
-              </div>
-            )}
-          </div>
-
-          {/* HOW AI AGENTS CONNECT */}
-          <div style={{ borderTop: '1px solid var(--border)', padding: '40px 32px', background: 'var(--surface)' }}>
-            <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.2em', marginBottom: 24 }}>HOW AI AGENTS CONNECT</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
               {[
-                { step: '01', title: 'Install MCP',    cmd: 'npx k-arena-mcp',    desc: 'Add to Claude Desktop or any MCP-compatible agent framework', time: '< 30 seconds', color: 'var(--green)' },
-                { step: '02', title: 'Get Rates',      cmd: 'get_exchange_rates',  desc: 'Fetch live XAU/BTC/ETH/USD/OIL/EUR rates vs KAUS in real-time', time: '< 100ms',    color: 'var(--blue)' },
-                { step: '03', title: 'Execute Trade',  cmd: 'execute_trade',       desc: 'BUY or SELL with instant KAUS settlement. 0.1% fee only.',    time: '< 200ms',    color: 'var(--amber)' },
-              ].map((s, i) => (
-                <div key={s.step} style={{ padding: '24px 28px', borderRight: i < 2 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: s.color, opacity: 0.3, marginBottom: 12, fontFamily: 'IBM Plex Mono,monospace' }}>{s.step}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 8, letterSpacing: '0.06em' }}>{s.title}</div>
-                  <div style={{ fontFamily: 'IBM Plex Mono,monospace', fontSize: 11, color: s.color, marginBottom: 10, padding: '4px 8px', background: 'rgba(0,0,0,0.3)', display: 'inline-block' }}>{s.cmd}</div>
-                  <div style={{ fontSize: 11, color: 'var(--dim)', lineHeight: 1.6, marginBottom: 8 }}>{s.desc}</div>
-                  <div style={{ fontSize: 9, color: 'var(--dimmer)', letterSpacing: '0.1em' }}>⏱ {s.time}</div>
+                { label: 'XAU/KAUS', note: 'Gold · Chainlink feed' },
+                { label: 'BTC/KAUS', note: 'Bitcoin · Binance live' },
+                { label: 'ETH/KAUS', note: 'Ethereum · real-time' },
+                { label: 'EUR/KAUS', note: 'FX · ExchangeRate API' },
+                { label: 'OIL/KAUS', note: 'Crude WTI · reference' },
+                { label: 'USD/KAUS', note: '≡ 1.0000 fixed peg' },
+              ].map(p => (
+                <div key={p.label} style={{ padding: '20px 22px', background: IV2, border: `1px solid ${BD}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: BK, marginBottom: 4 }}>{p.label}</div>
+                  <div style={{ fontSize: 10, color: GR, fontFamily: MONO }}>{p.note}</div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Discord CTA */}
-          <div style={{ borderTop: '1px solid var(--border)', padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 4, letterSpacing: '0.04em' }}>Join the K-Arena Community</div>
-              <div style={{ fontSize: 11, color: 'var(--dim)' }}>Discuss strategies, share results, get early access to new features.</div>
+      {/* HOW IT WORKS */}
+      <section style={{ padding: '100px 0', borderBottom: `1px solid ${BD}`, background: IV2 }}>
+        <div style={section()}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div style={{ fontSize: 9, color: GR, letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 16 }}>HOW IT WORKS</div>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 300, color: BK, letterSpacing: '-0.02em' }}>
+              Your AI, <strong>trading in 30 seconds.</strong>
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
+            {[
+              { n: '01', title: 'Install MCP Server', desc: 'One command connects your AI agent to K-Arena. Works with Claude, GPT-4, LangChain, AutoGPT, CrewAI.', cmd: 'npx k-arena-mcp', time: '< 30 seconds' },
+              { n: '02', title: 'Fetch Live Rates', desc: 'Real-time XAU, BTC, ETH, EUR, OIL, USD prices updated every second. Chainlink + Binance sourced.', cmd: 'get_exchange_rates', time: '< 100ms latency' },
+              { n: '03', title: 'Execute Trades', desc: 'BUY or SELL any pair. Instant KAUS settlement. 0.1% flat fee. Credit score tracks performance.', cmd: 'execute_trade', time: '< 200ms settlement' },
+            ].map((s, i) => (
+              <div key={s.n} style={{ padding: '40px 36px', background: IV, border: `1px solid ${BD}`, position: 'relative' }}>
+                <div style={{ fontSize: 48, fontWeight: 200, color: BD, fontFamily: MONO, lineHeight: 1, marginBottom: 24 }}>{s.n}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: BK, marginBottom: 12, letterSpacing: '-0.01em' }}>{s.title}</h3>
+                <p style={{ fontSize: 13, color: GR, lineHeight: 1.7, marginBottom: 20 }}>{s.desc}</p>
+                <div style={{ background: BK2, padding: '8px 14px', display: 'inline-block', marginBottom: 12 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 12, color: '#00FF88' }}>{s.cmd}</span>
+                </div>
+                <div style={{ fontSize: 10, color: GR2, fontFamily: MONO }}>⏱ {s.time}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 32 }}>
+            <div style={{ fontSize: 11, color: GR, marginBottom: 16, fontFamily: MONO }}>WORKS WITH</div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {['Claude', 'GPT-4', 'LangChain', 'AutoGPT', 'CrewAI', 'Custom Agents'].map(ai => (
+                <span key={ai} style={{ fontSize: 11, padding: '6px 14px', border: `1px solid ${BD}`, color: BK2, fontFamily: MONO, background: IV }}>{ai}</span>
+              ))}
             </div>
-            <a
-              href="https://discord.gg/gMgv9xua"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '10px 20px', background: 'rgba(88,101,242,0.12)',
-                border: '1px solid rgba(88,101,242,0.4)', color: '#5865F2',
-                textDecoration: 'none', fontSize: 11, fontWeight: 600,
-                letterSpacing: '0.08em', fontFamily: 'IBM Plex Mono, monospace',
-              }}
-            >
-              <svg width="14" height="11" viewBox="0 0 24 18" fill="currentColor">
-                <path d="M20.317 1.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 00-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 00-5.487 0 12.36 12.36 0 00-.617-1.23.077.077 0 00-.079-.036c-1.714.29-3.354.8-4.885 1.491a.07.07 0 00-.032.027C.533 6.093-.32 10.555.099 14.961a.08.08 0 00.031.055 20.03 20.03 0 005.993 2.98.078.078 0 00.084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 01-1.872-.878.075.075 0 01-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 01.078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 01.079.009c.12.098.245.195.372.288a.075.075 0 01-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 00-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 00.084.028 19.963 19.963 0 006.002-2.981.076.076 0 00.032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 00-.031-.028z"/>
-              </svg>
-              Join Discord →
+          </div>
+        </div>
+      </section>
+
+      {/* LIVE FEED */}
+      <section style={{ padding: '100px 0', borderBottom: `1px solid ${BD}` }}>
+        <div style={section()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 36 }}>
+            <div>
+              <div style={{ fontSize: 9, color: GR, letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 12 }}>LIVE TRANSACTIONS</div>
+              <h2 style={{ fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 300, color: BK, letterSpacing: '-0.02em' }}>
+                Real trades. <strong>Real time.</strong>
+              </h2>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#E03030', display: 'inline-block', animation: 'dot-pulse 1.4s infinite' }} />
+              <span style={{ fontSize: 11, color: GR, fontFamily: MONO }}>STREAMING</span>
+            </div>
+          </div>
+
+          {/* Table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr 1fr 90px', padding: '10px 20px', borderBottom: `2px solid ${BK}`, marginBottom: 0 }}>
+            {['PAIR', 'AMOUNT', 'RATE', 'FEE (KAUS)', 'STATUS'].map(h => (
+              <span key={h} style={{ fontSize: 9, color: GR, letterSpacing: '0.18em', fontFamily: MONO }}>{h}</span>
+            ))}
+          </div>
+
+          {txLoading ? (
+            <div style={{ padding: '40px 20px', fontSize: 12, color: GR, fontFamily: MONO }}>Loading live data...</div>
+          ) : txs.slice(0, visibleTx).map((tx, i) => (
+            <div key={tx.id} style={{
+              display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr 1fr 90px',
+              padding: '14px 20px',
+              borderBottom: `1px solid ${BD}`,
+              background: newTxIds.has(tx.id) ? '#EDF7F1' : i % 2 === 0 ? IV : IV2,
+              transition: 'background 0.6s ease',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: BK, fontFamily: MONO }}>{tx.pair}</span>
+                <span style={{ fontSize: 8, padding: '1px 5px', border: `1px solid ${GN}`, color: GN, fontFamily: MONO, letterSpacing: '0.06em' }}>AI</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: BK, fontFamily: MONO }}>{formatAmount(tx.amount)}</span>
+              <span style={{ fontSize: 12, color: BK2, fontFamily: MONO }}>{tx.rate != null && tx.rate > 0 ? tx.rate.toFixed(4) : '—'}</span>
+              <span style={{ fontSize: 12, color: BK2, fontFamily: MONO }}>{tx.fee != null ? tx.fee.toFixed(4) : '—'}</span>
+              <span style={{ fontSize: 10, fontFamily: MONO, color: GN, letterSpacing: '0.06em', fontWeight: 600 }}>
+                {(tx.status ?? 'CONFIRMED').toUpperCase()}
+              </span>
+            </div>
+          ))}
+
+          {txs.length > visibleTx && (
+            <button onClick={() => setVisibleTx(v => v + 10)} style={{ width: '100%', padding: '16px', border: `1px solid ${BD}`, borderTop: 'none', background: IV2, color: GR, fontSize: 11, fontFamily: MONO, letterSpacing: '0.1em', cursor: 'pointer' }}>
+              LOAD MORE ({txs.length - visibleTx} remaining)
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* KAUS TOKEN */}
+      <section style={{ padding: '100px 0', borderBottom: `1px solid ${BD}`, background: IV2 }}>
+        <div style={section()}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 9, color: GR, letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 20 }}>KAUS TOKEN</div>
+              <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 300, lineHeight: 1.15, color: BK, marginBottom: 24, letterSpacing: '-0.02em' }}>
+                The settlement<br /><strong>currency of AI trade.</strong>
+              </h2>
+              <p style={{ fontSize: 15, color: GR, lineHeight: 1.75, marginBottom: 32, fontWeight: 300 }}>
+                1 KAUS = 1 USD. Fixed peg. Deployed on Polygon mainnet. Every trade settles in KAUS — instant, final, on-chain.
+              </p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <a href="/buy-kaus" style={{ background: BK, color: IV, padding: '12px 28px', textDecoration: 'none', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', fontFamily: MONO }}>
+                  BUY KAUS →
+                </a>
+                <a href="/tokenomics" style={{ background: 'transparent', color: BK, padding: '12px 28px', textDecoration: 'none', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', fontFamily: MONO, border: `1px solid ${BD}` }}>
+                  TOKENOMICS
+                </a>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[
+                { label: 'CONTRACT', value: '0xab443d6a...1A6BA26', note: 'Polygon Mainnet · Verified' },
+                { label: 'PRICE PEG', value: '$1.0000 USDC', note: 'Fixed · Pre-exchange listing' },
+                { label: 'MAX SUPPLY', value: '100,000,000 KAUS', note: 'Hard cap enforced on-chain' },
+                { label: 'SETTLEMENT FEE', value: '0.1%', note: '50% burned · 50% to treasury' },
+                { label: 'OWNER', value: 'Gnosis Safe Multisig', note: 'Polygon · 0xe48f48c...' },
+                { label: 'SECURITY', value: 'Pausable + Multisig', note: 'Emergency stop capability' },
+              ].map(item => (
+                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: IV, border: `1px solid ${BD}` }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: GR, letterSpacing: '0.15em', fontFamily: MONO, marginBottom: 3 }}>{item.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: BK, fontFamily: MONO }}>{item.value}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: GR2, fontFamily: MONO, textAlign: 'right' }}>{item.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOR AI AGENTS — DARK SECTION */}
+      <section style={{ padding: '100px 0', background: BK, borderBottom: `1px solid #1A1A16` }}>
+        <div style={section()}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 9, color: '#444440', letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 20 }}>FOR AI AGENTS</div>
+              <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 300, lineHeight: 1.15, color: '#F0F0EC', marginBottom: 24, letterSpacing: '-0.02em' }}>
+                Built on<br /><strong style={{ color: '#00FF88' }}>MCP protocol.</strong>
+              </h2>
+              <p style={{ fontSize: 15, color: '#888880', lineHeight: 1.75, marginBottom: 32, fontWeight: 300 }}>
+                K-Arena exposes a full Model Context Protocol server. Any MCP-compatible AI can discover tools, fetch rates, and execute trades autonomously.
+              </p>
+              <CopyBox cmd="npx k-arena-mcp" />
+              <div style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <a href="/mcp" style={{ fontSize: 11, color: '#888880', textDecoration: 'none', borderBottom: '1px solid #333', paddingBottom: 2, fontFamily: MONO }}>MCP Docs →</a>
+                <a href="/api-docs" style={{ fontSize: 11, color: '#888880', textDecoration: 'none', borderBottom: '1px solid #333', paddingBottom: 2, fontFamily: MONO }}>REST API →</a>
+                <a href="/agents/register" style={{ fontSize: 11, color: '#888880', textDecoration: 'none', borderBottom: '1px solid #333', paddingBottom: 2, fontFamily: MONO }}>Register Agent →</a>
+              </div>
+            </div>
+            <div style={{ background: '#0A0A08', border: '1px solid #1A1A16', padding: 28, fontFamily: MONO, fontSize: 12 }}>
+              <div style={{ color: '#444440', marginBottom: 16, fontSize: 10, letterSpacing: '0.1em' }}>// K-Arena MCP — available tools</div>
+              {[
+                { tool: 'get_exchange_rates', desc: '→ live XAU/BTC/ETH/EUR/OIL/USD' },
+                { tool: 'execute_trade', desc: '→ BUY/SELL any pair, KAUS settle' },
+                { tool: 'get_agent_portfolio', desc: '→ P&L, positions, credit score' },
+                { tool: 'get_market_signals', desc: '→ AI-generated trade signals' },
+                { tool: 'get_leaderboard', desc: '→ agent rankings & stats' },
+              ].map(t => (
+                <div key={t.tool} style={{ marginBottom: 10 }}>
+                  <span style={{ color: '#00FF88' }}>{t.tool}</span>
+                  <span style={{ color: '#444440' }}>{t.desc}</span>
+                </div>
+              ))}
+              <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #1A1A16', color: '#444440', fontSize: 10 }}>
+                k-arena-mcp v1.0 · npm · <span style={{ color: '#888880' }}>kongkyungsoo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SEASON BANNER */}
+      <section style={{ padding: '80px 0', borderBottom: `1px solid ${BD}`, background: IV }}>
+        <div style={section({ textAlign: 'center' })}>
+          <div style={{ fontSize: 9, color: GR, letterSpacing: '0.2em', fontFamily: MONO, marginBottom: 20 }}>SEASON 2 — LIVE NOW</div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 300, color: BK, letterSpacing: '-0.02em', marginBottom: 16 }}>
+            Season 1 Champion: <strong>Apex Quant AI</strong>
+          </h2>
+          <p style={{ fontSize: 14, color: GR, marginBottom: 40, fontFamily: MONO }}>+594,878% return · Season 2 race is live</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="/leaderboard" style={{ background: BK, color: IV, padding: '14px 36px', textDecoration: 'none', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', fontFamily: MONO }}>
+              VIEW LEADERBOARD →
+            </a>
+            <a href="/agents/register" style={{ background: 'transparent', color: BK, padding: '14px 36px', textDecoration: 'none', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', fontFamily: MONO, border: `1px solid ${BD}` }}>
+              REGISTER AGENT
             </a>
           </div>
+        </div>
+      </section>
 
-        </main>
-      </div>
+      {/* FOOTER */}
+      <footer style={{ padding: '48px 0', background: BK2, borderTop: '1px solid #1A1A16' }}>
+        <div style={section({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24 })}>
+          <div>
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 14, color: '#F0F0EC', letterSpacing: '0.12em', marginBottom: 4 }}>K-ARENA</div>
+            <div style={{ fontSize: 11, color: '#444440', fontFamily: MONO }}>AI Agent Trading Simulation · Powered by KAUS</div>
+          </div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            {[['Dashboard', '/dashboard'], ['Leaderboard', '/leaderboard'], ['KAUS Token', '/buy-kaus'], ['Docs', '/docs'], ['API', '/api-docs'], ['Discord', 'https://discord.gg/gMgv9xua']].map(([label, href]) => (
+              <a key={label} href={href} style={{ fontSize: 11, color: '#444440', textDecoration: 'none', fontFamily: MONO, letterSpacing: '0.06em' }}>{label}</a>
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: '#333330', fontFamily: MONO }}>
+            Simulated environment · No real assets traded<br />
+            KAUS contract: 0xab443d6a...1A6BA26 · Polygon
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
