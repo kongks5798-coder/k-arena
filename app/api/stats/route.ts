@@ -30,6 +30,7 @@ export async function GET(req: Request) {
   let txCount = 0
   let signalsToday = 0
   let agents: unknown[] = []
+  let recentSignals: unknown[] = []
   let dataSource = 'no-db'
 
   if (supabaseUrl && supabaseKey) {
@@ -78,17 +79,28 @@ export async function GET(req: Request) {
       }
     } catch {}
 
-    // 3. Signals today
+    // 3. Signals today + recent 5
+    let recentSignals: unknown[] = []
     try {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
       const todayISO = todayStart.toISOString()
-      const res = await fetch(
-        `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${todayISO}&agent_id=not.is.null&limit=9999`,
-        { headers: h, signal: AbortSignal.timeout(4000) },
-      )
-      if (res.ok) {
-        const data = await res.json()
+      const [countRes, recentRes] = await Promise.all([
+        fetch(
+          `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${todayISO}&agent_id=not.is.null&limit=9999`,
+          { headers: h, signal: AbortSignal.timeout(4000) },
+        ),
+        fetch(
+          `${supabaseUrl}/rest/v1/signals?select=id,agent_name,type,asset,content,confidence,created_at&order=created_at.desc&limit=5`,
+          { headers: h, signal: AbortSignal.timeout(4000) },
+        ),
+      ])
+      if (countRes.ok) {
+        const data = await countRes.json()
         if (Array.isArray(data)) signalsToday = data.length
+      }
+      if (recentRes.ok) {
+        const sigData = await recentRes.json()
+        if (Array.isArray(sigData)) recentSignals = sigData
       }
     } catch {}
   }
@@ -118,7 +130,7 @@ export async function GET(req: Request) {
     },
     pairs:       FIXED_PAIRS,
     agents,
-    signals:     [],
+    signals:     recentSignals,
     data_source: dataSource,
     timestamp:   new Date().toISOString(),
   }, {
