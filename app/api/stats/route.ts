@@ -61,9 +61,10 @@ export async function GET() {
 
     // 3. Signals today
     try {
-      const today = new Date(); today.setUTCHours(0,0,0,0)
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+      const todayISO = todayStart.toISOString()
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${today.toISOString()}&agent_id=not.is.null&limit=9999`,
+        `${supabaseUrl}/rest/v1/signals?select=id&created_at=gte.${todayISO}&agent_id=not.is.null&limit=9999`,
         { headers: h, signal: AbortSignal.timeout(4000) },
       )
       if (res.ok) {

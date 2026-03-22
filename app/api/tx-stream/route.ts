@@ -49,7 +49,7 @@ export async function GET(request: Request) {
   const agentNameMap: Record<string, string> = {}
   try {
     const agRes = await fetch(
-      `${supabaseUrl}/rest/v1/agents?select=id,name&limit=100`,
+      `${supabaseUrl}/rest/v1/agents?select=id,name&limit=100&id=not.like.AGT-%25`,
       { headers: supabaseHeaders, signal: AbortSignal.timeout(4000) },
     )
     if (agRes.ok) {

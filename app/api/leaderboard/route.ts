@@ -54,7 +54,7 @@ export async function GET(req: Request) {
   try {
     // 1. agents
     const agRes = await fetch(
-      `${SB}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active,pnl_percent,rank,initial_balance&order=rank.asc&limit=100`,
+      `${SB}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active,pnl_percent,rank,initial_balance&order=rank.asc&limit=100&id=not.like.AGT-%25`,
       { headers: H(), signal: AbortSignal.timeout(6000) }
     )
     if (!agRes.ok) return seedResponse(period)

@@ -97,7 +97,7 @@ export function Topbar({ rightContent }: { rightContent?: React.ReactNode }) {
               color: topPnl.pnl >= 0 ? 'var(--green)' : '#ef4444',
               fontFamily: 'IBM Plex Mono, monospace',
             }}>
-              {topPnl.pnl >= 0 ? '+' : ''}{topPnl.pnl.toFixed(2)}%
+              {topPnl.name.split(' ').slice(0, 2).join(' ')} {topPnl.pnl >= 0 ? '+' : ''}{topPnl.pnl >= 100 ? topPnl.pnl.toFixed(0) : topPnl.pnl.toFixed(2)}%
             </span>
           </Link>
         )}
