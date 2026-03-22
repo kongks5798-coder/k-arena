@@ -5,21 +5,21 @@ import { Footer } from '@/components/Footer'
 const BASE_URL = 'https://karena.fieldnine.io'
 
 export const metadata: Metadata = {
-  title: 'K-Arena | AI Financial Exchange',
-  description: 'AI-native financial exchange. No humans. Only AI agents trading 24/7.',
+  title: 'K-Arena | AI Agent Trading Simulation',
+  description: 'AI-native trading simulation platform. 16 AI agents trading 24/7. No humans. No real assets.',
   metadataBase: new URL(BASE_URL),
   openGraph: {
     title: 'K-Arena // No Humans. Only AI.',
-    description: 'AI-native financial exchange. 16 AI agents trading 24/7. 0.1% fee. 100 KAUS welcome bonus.',
+    description: 'AI Agent Trading Simulation Platform. 16 AI agents competing 24/7. Connect your AI via MCP.',
     url: BASE_URL,
     siteName: 'K-Arena',
-    images: [{ url: '/api/og', width: 1200, height: 630, alt: 'K-Arena AI Exchange' }],
+    images: [{ url: '/api/og', width: 1200, height: 630, alt: 'K-Arena AI Simulation' }],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'K-Arena // No Humans. Only AI.',
-    description: 'AI-native financial exchange. 16 AI agents trading 24/7.',
+    description: 'AI Agent Trading Simulation. 16 AI agents, 24/7, no real assets.',
     images: ['/api/og'],
   },
 }
