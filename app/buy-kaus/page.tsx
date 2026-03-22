@@ -56,7 +56,15 @@ export default function BuyKausPage() {
   const [txStatus, setTxStatus] = useState<{ msg: string; ok: boolean } | null>(null)
 
   useEffect(() => {
-    fetch('/api/stats').then(r => r.json()).then(d => { if (d.ok) setStats(d.stats) }).catch(() => {})
+    fetch('/api/stats').then(r => r.json()).then(d => {
+      if (d.ok && d.platform) setStats({
+        active_agents:      d.platform.active_agents,
+        genesis_claimed:    d.platform.genesis_sold,
+        genesis_remaining:  d.platform.genesis_total - d.platform.genesis_sold,
+        total_transactions: d.platform.total_trades_24h,
+        volume_24h:         d.platform.total_volume_24h,
+      })
+    }).catch(() => {})
 
     if (typeof window !== 'undefined' && window.ethereum) {
       window.ethereum.request({ method: 'eth_accounts' }).then((res) => {
@@ -133,7 +141,7 @@ export default function BuyKausPage() {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' }) as string[]
       if (accounts[0]) {
         setWallet(accounts[0])
-        await switchToAmoy()  // Default to Amoy testnet
+        await switchToPolygon()  // Polygon Mainnet (contract deployed)
       }
     } catch {}
     setConnecting(false)
@@ -246,7 +254,7 @@ export default function BuyKausPage() {
             {isOnAmoy && <span style={{ fontSize: 9, padding: '2px 7px', border: '1px solid #8b5cf6', color: '#8b5cf6', fontFamily: 'IBM Plex Mono' }}>AMOY</span>}
             {isOnPolygon && <span style={{ fontSize: 9, padding: '2px 7px', border: '1px solid var(--green)', color: 'var(--green)', fontFamily: 'IBM Plex Mono' }}>POLYGON</span>}
             {!isOnAmoy && !isOnPolygon && (
-              <button onClick={switchToAmoy} style={{ fontSize: 9, padding: '2px 7px', border: '1px solid #f59e0b', color: '#f59e0b', background: 'none', cursor: 'pointer' }}>SWITCH NETWORK</button>
+              <button onClick={switchToPolygon} style={{ fontSize: 9, padding: '2px 7px', border: '1px solid #f59e0b', color: '#f59e0b', background: 'none', cursor: 'pointer' }}>SWITCH NETWORK</button>
             )}
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
             <span style={{ fontSize: 10, color: 'var(--green)', fontFamily: 'IBM Plex Mono' }}>{wallet.slice(0, 6)}...{wallet.slice(-4)}</span>
@@ -314,16 +322,10 @@ export default function BuyKausPage() {
                     <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 12, lineHeight: 1.7 }}>
                       Connect MetaMask to view your KAUS balance and purchase tokens on Polygon.
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={connectWallet} disabled={connecting}
-                        style={{ flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
-                        {connecting ? 'CONNECTING...' : 'CONNECT METAMASK'}
-                      </button>
-                      <button onClick={switchToAmoy}
-                        style={{ padding: 10, background: 'transparent', border: '1px solid #8b5cf6', color: '#8b5cf6', fontSize: 10, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        + AMOY TESTNET
-                      </button>
-                    </div>
+                    <button onClick={connectWallet} disabled={connecting}
+                      style={{ width: '100%', padding: 10, background: 'transparent', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer' }}>
+                      {connecting ? 'CONNECTING...' : 'CONNECT METAMASK'}
+                    </button>
                   </div>
                 )}
 
@@ -360,7 +362,7 @@ export default function BuyKausPage() {
                     ['Amount',       `${kausAmt.toLocaleString()} KAUS`],
                     ['Price / KAUS', `$${KAUS_PRICE_USD.toFixed(2)} USD`],
                     ['Network fee',  '≈ $0.01 MATIC'],
-                    ['Platform fee', '0%'],
+                    ['Platform fee', '0.1%'],
                   ].map(([k, v]) => (
                     <div key={k} style={S.row}>
                       <span style={{ color: 'var(--dimmer)' }}>{k}</span>
@@ -394,10 +396,6 @@ export default function BuyKausPage() {
                 <div style={S.card}>
                   <span style={S.label}>NETWORKS</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <button onClick={switchToAmoy}
-                      style={{ width: '100%', padding: '8px', background: isOnAmoy ? 'rgba(139,92,246,0.1)' : 'transparent', border: `1px solid ${isOnAmoy ? '#8b5cf6' : 'var(--border)'}`, color: isOnAmoy ? '#8b5cf6' : 'var(--dim)', fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
-                      {isOnAmoy ? '✓ ' : ''}POLYGON AMOY TESTNET
-                    </button>
                     <button onClick={switchToPolygon}
                       style={{ width: '100%', padding: '8px', background: isOnPolygon ? 'rgba(0,255,136,0.07)' : 'transparent', border: `1px solid ${isOnPolygon ? 'var(--green)' : 'var(--border)'}`, color: isOnPolygon ? 'var(--green)' : 'var(--dim)', fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer' }}>
                       {isOnPolygon ? '✓ ' : ''}POLYGON MAINNET
@@ -494,17 +492,16 @@ KAUS Token Contract (Polygon ERC-20)
               <div style={S.card}>
                 <span style={S.label}>BLOCKCHAIN SETUP CHECKLIST</span>
                 {[
-                  { done: true,  item: 'KAUS Token Solidity contract written (ERC-20, OpenZeppelin)', link: null },
-                  { done: true,  item: 'Hardhat config: Polygon mainnet + Amoy testnet + Mumbai',    link: null },
-                  { done: true,  item: 'deploy-kaus.ts quick deploy script created',                 link: null },
-                  { done: false, item: 'Fund deployer wallet with test MATIC (Amoy faucet)',          link: 'https://faucet.polygon.technology' },
-                  { done: false, item: 'Set DEPLOYER_PRIVATE_KEY in blockchain/.env',                link: null },
-                  { done: false, item: 'Deploy to Polygon Amoy testnet + Polygonscan verify',        link: 'https://amoy.polygonscan.com' },
-                  { done: false, item: 'Add NEXT_PUBLIC_KAUS_CONTRACT to Vercel env',                link: null },
-                  { done: false, item: 'Deploy to Polygon Mainnet + verify',                         link: 'https://polygonscan.com' },
-                  { done: false, item: 'Set up Gnosis Safe treasury (app.safe.global)',              link: 'https://app.safe.global' },
-                  { done: false, item: 'Create KAUS/USDC QuickSwap liquidity pool',                  link: 'https://quickswap.exchange' },
-                  { done: false, item: 'Submit to CoinGecko / CoinMarketCap',                        link: null },
+                  { done: true,  item: 'KAUS Token Solidity contract written (ERC-20 + Pausable)',          link: null },
+                  { done: true,  item: 'Hardhat config: Polygon mainnet + Amoy testnet',                   link: null },
+                  { done: true,  item: 'deploy-kaus.ts quick deploy script created',                       link: null },
+                  { done: true,  item: 'Fund deployer wallet with MATIC',                                  link: null },
+                  { done: true,  item: 'Set DEPLOYER_PRIVATE_KEY in blockchain/.env',                      link: null },
+                  { done: true,  item: 'Deploy to Polygon Mainnet + Sourcify verify',                      link: 'https://polygonscan.com/address/0xab443d6a43Be601e20876C2CA0c512e051A6BA26' },
+                  { done: true,  item: 'Add NEXT_PUBLIC_KAUS_CONTRACT to Vercel env',                      link: null },
+                  { done: true,  item: 'Set up Gnosis Safe treasury (2/3 multisig)',                       link: 'https://app.safe.global' },
+                  { done: false, item: 'Create KAUS/USDC QuickSwap liquidity pool',                        link: 'https://quickswap.exchange' },
+                  { done: false, item: 'Submit to CoinGecko / CoinMarketCap',                              link: null },
                 ].map((c, i, arr) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
                     <span style={{ fontSize: 10, color: c.done ? 'var(--green)' : 'var(--dimmer)', flexShrink: 0 }}>{c.done ? '✓' : '○'}</span>
