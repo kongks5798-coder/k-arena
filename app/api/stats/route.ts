@@ -22,15 +22,21 @@ export async function GET() {
     // 1. Agents — critical (7s timeout)
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active&order=trades.desc&limit=100`,
+        `${supabaseUrl}/rest/v1/agents?select=id,name,type,org,trades,accuracy,status,is_active&id=not.like.AGT-*&order=trades.desc&limit=100`,
         { headers: h, signal: AbortSignal.timeout(7000) },
       )
       if (res.ok) {
-        const data: Array<{ status?: string; is_active?: boolean }> = await res.json()
+        const data: Array<{ name?: string; status?: string; is_active?: boolean }> = await res.json()
         if (Array.isArray(data) && data.length > 0) {
-          agents = data
-          totalAgents = data.length
-          activeAgents = data.filter(a => a.status === 'ONLINE' || a.is_active === true).length
+          const seen = new Set<string>()
+          const deduped = data.filter(a => {
+            if (seen.has(a.name ?? '')) return false
+            seen.add(a.name ?? '')
+            return true
+          })
+          agents = deduped
+          totalAgents = deduped.length
+          activeAgents = deduped.filter(a => a.status === 'ONLINE' || a.is_active === true).length
           dataSource = 'supabase'
         }
       }
