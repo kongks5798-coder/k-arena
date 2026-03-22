@@ -1,28 +1,15 @@
 import { NextResponse, NextRequest } from 'next/server'
 
-// 시간 기반 일관된 가격 시뮬레이션
-function generatePriceHistory(hours = 24) {
+// KAUS = $1.00 고정 페그 — 가짜 시뮬레이션 없음
+function buildFlatHistory(hours: number) {
   const now = Date.now()
   const history = []
-  let price = 1.0041
-  let trend = 0
-
   for (let i = hours; i >= 0; i--) {
     const ts = now - i * 3600000
-    // 트렌드 랜덤워크
-    trend += (Math.random() - 0.5) * 0.001
-    trend = Math.max(-0.005, Math.min(0.005, trend)) // 트렌드 클리핑
-    price += trend + (Math.random() - 0.5) * 0.003
-    price = Math.max(0.95, Math.min(1.08, price)) // 가격 범위 제한
-
     history.push({
       timestamp: new Date(ts).toISOString(),
       time: Math.floor(ts / 1000),
-      open: parseFloat(price.toFixed(4)),
-      high: parseFloat((price * (1 + Math.random() * 0.005)).toFixed(4)),
-      low: parseFloat((price * (1 - Math.random() * 0.005)).toFixed(4)),
-      close: parseFloat((price + (Math.random() - 0.5) * 0.002).toFixed(4)),
-      volume: Math.floor(Math.random() * 100000 + 20000),
+      open: 1.0000, high: 1.0000, low: 1.0000, close: 1.0000, volume: 0,
     })
   }
   return history
@@ -68,22 +55,19 @@ export async function GET(req: NextRequest) {
     } catch { /* fallback */ }
   }
 
-  // 시뮬레이션 폴백
-  const history = generatePriceHistory(hours)
-  const current = history[history.length - 1].close
-  const open = history[0].open
-  const change = parseFloat(((current - open) / open * 100).toFixed(2))
+  // 폴백: 고정 $1.00 페그 데이터 (가짜 시뮬레이션 없음)
+  const history = buildFlatHistory(hours)
 
   return NextResponse.json({
     symbol: 'KAUS/USD',
     period,
-    current_price: current,
-    open_price: open,
-    change_pct: change,
-    high: Math.max(...history.map(h => h.high)),
-    low: Math.min(...history.map(h => h.low)),
-    volume_24h: history.slice(-24).reduce((s, h) => s + h.volume, 0),
+    current_price: 1.0000,
+    open_price: 1.0000,
+    change_pct: 0,
+    high: 1.0000,
+    low: 1.0000,
+    volume_24h: 0,
     history,
-    source: 'simulation',
+    source: 'peg',
   }, { headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' } })
 }

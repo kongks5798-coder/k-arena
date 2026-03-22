@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     const execPrice = direction === 'BUY' ? priceData.ask : priceData.bid
-    const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`
+    const txId = `TX-${Date.now()}-${(Date.now() % 9999).toString().padStart(4, '0')}`
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY
 

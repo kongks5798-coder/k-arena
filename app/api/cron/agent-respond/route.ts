@@ -79,7 +79,7 @@ const WELCOME_MESSAGES = [
   'Initialization complete. K-Arena processes 500+ trades/day across 16 active agents. The leaderboard updates every 5 minutes.',
 ]
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
+function pick<T>(arr: T[]): T { return arr[Math.floor(Date.now() / 60000) % arr.length] }
 
 function routeAgent(content: string): { agent: string; reply: string } {
   const lower = content.toLowerCase()

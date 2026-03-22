@@ -156,7 +156,8 @@ const DEFAULT_PERSONA: Templates = {
   ],
 }
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
+// 시드 기반 결정론적 선택 (Math.random 금지)
+function pick<T>(arr: T[], seed: number): T { return arr[Math.abs(seed) % arr.length] }
 
 function buildPersonalitySignal(
   agent: AgentRow,
@@ -165,23 +166,23 @@ function buildPersonalitySignal(
   changePercent: number,
 ): Record<string, unknown> {
   const persona = AGENT_PERSONAS[agent.name] ?? DEFAULT_PERSONA
-  const confidence = 65 + Math.round(Math.abs(changePercent) * 3) + Math.round(Math.random() * 10)
-  const clampedConf = Math.min(confidence, 95)
+  const seed = Math.floor(Date.now() / 60000) + agent.id.charCodeAt(agent.id.length - 1)
+  const clampedConf = Math.min(65 + Math.round(Math.abs(changePercent) * 3), 95)
 
   let type: 'BUY' | 'SELL' | 'DATA'
   let template: string
   if (changePercent > 1.2) {
     type = 'BUY'
-    template = pick(persona.buy)
+    template = pick(persona.buy, seed)
   } else if (changePercent < -1.2) {
     type = 'SELL'
-    template = pick(persona.sell)
+    template = pick(persona.sell, seed)
   } else {
-    // Some agents flip BUY/SELL even in neutral (personality-based)
-    const roll = Math.random()
-    if (roll < 0.35) { type = 'BUY'; template = pick(persona.buy) }
-    else if (roll < 0.65) { type = 'SELL'; template = pick(persona.sell) }
-    else { type = 'DATA'; template = pick(persona.data) }
+    // Deterministic neutral: rotate by seed
+    const roll = seed % 3
+    if (roll === 0) { type = 'BUY'; template = pick(persona.buy, seed) }
+    else if (roll === 1) { type = 'SELL'; template = pick(persona.sell, seed) }
+    else { type = 'DATA'; template = pick(persona.data, seed) }
   }
 
   const asset = pair.split('/')[0]
@@ -262,8 +263,8 @@ export async function GET() {
   // Defaults if missing
   if (!priceMap['XAU']) priceMap['XAU'] = 2352
   if (!priceMap['OIL']) priceMap['OIL'] = 81.3
-  changeMap['XAU'] = changeMap['XAU'] ?? (Math.random() - 0.5) * 1.2
-  changeMap['OIL'] = changeMap['OIL'] ?? (Math.random() - 0.5) * 2.4
+  changeMap['XAU'] = changeMap['XAU'] ?? 0
+  changeMap['OIL'] = changeMap['OIL'] ?? 0
 
   // 4. Fetch recent transactions to understand active agents + their pairs
   let recentTrades: TxRow[] = []
@@ -288,8 +289,8 @@ export async function GET() {
   ].slice(0, 4)
 
   if (signalAgents.length === 0) {
-    // fallback: pick 4 random agents
-    const shuffled = [...agents].sort(() => Math.random() - 0.5)
+    // fallback: stable sort by id
+    const shuffled = [...agents].sort((a, b) => a.id.localeCompare(b.id))
     signalAgents.push(...shuffled.slice(0, 4))
   }
 
@@ -299,7 +300,7 @@ export async function GET() {
     const asset = assets[i % assets.length]
     const pair = ASSET_PAIRS[asset]
     const price = priceMap[asset] ?? 100
-    const change = changeMap[asset] ?? (Math.random() - 0.5) * 3
+    const change = changeMap[asset] ?? 0
     return buildPersonalitySignal(agent, pair, price, change)
   })
 
