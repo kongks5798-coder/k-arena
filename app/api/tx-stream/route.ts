@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 
 const SUPABASE_TRANSACTIONS_SELECT =
   'id,agent_id,from_currency,to_currency,input_amount,rate,fee_kaus,status,created_at'
