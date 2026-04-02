@@ -152,4 +152,6 @@ API 보호: /api/exchange, /api/kaus/purchase, /api/agents/register
 ---
 
 ## [DEPLOYER]
-(대기)
+- 커밋: 4ba3ea41
+- 배포: https://k-arena-kaus2025.vercel.app ✅
+- 빌드: Compiled successfully
