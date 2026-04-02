@@ -1,3 +1,6 @@
+import { NextResponse } from 'next/server'
+import { hasActiveAgents } from '@/lib/cron-guard'
+
 export const dynamic = 'force-dynamic'
 
 const SB  = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
@@ -213,7 +216,11 @@ const ASSET_PAIRS: Record<string, string> = {
 
 export async function GET() {
   if (!SB || !KEY) {
-    return Response.json({ ok: false, error: 'Missing Supabase env vars' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: 'Missing Supabase env vars' }, { status: 500 })
+  }
+
+  if (!(await hasActiveAgents())) {
+    return NextResponse.json({ ok: true, skipped: true, reason: 'no-active-agents' })
   }
 
   // 1. Fetch agents

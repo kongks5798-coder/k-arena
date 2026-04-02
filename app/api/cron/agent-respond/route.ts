@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { hasActiveAgents } from '@/lib/cron-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,6 +101,10 @@ export async function GET(req: Request) {
   const sb = SB()
   const key = KEY()
   if (!sb || !key) return NextResponse.json({ ok: false, reason: 'no-db' })
+
+  if (!(await hasActiveAgents())) {
+    return NextResponse.json({ ok: true, skipped: true, reason: 'no-active-agents' })
+  }
 
   let replied = 0
   let errors = 0
