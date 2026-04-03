@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { hasActiveAgents } from '@/lib/cron-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,10 @@ export async function GET(req: Request) {
   const auth = req.headers.get('authorization')
   if (auth !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  if (!(await hasActiveAgents())) {
+    return NextResponse.json({ ok: true, skipped: true, reason: 'no-active-agents' })
   }
 
   const sb = SB()

@@ -23,7 +23,6 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        if (typeof window !== "undefined") localStorage.setItem("token", data.token);
         router.push("/");
       } else {
         setError(data.message || "로그인 실패");

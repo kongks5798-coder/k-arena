@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 
+export const maxDuration = 30
+
 const BASE_PRICES: Record<string, number> = {
   'XAU/KAUS': 2352, 'USD/KAUS': 1.01, 'ETH/KAUS': 3318,
   'BTC/KAUS': 87420, 'OIL/KAUS': 81.3, 'EUR/KAUS': 1.084,
@@ -32,6 +34,9 @@ export async function GET(req: NextRequest) {
 
       // 연결 종료 감지
       req.signal.addEventListener('abort', () => { active = false })
+
+      // maxDuration(30s) 이내로 종료 — Fluid 비용 방지
+      setTimeout(() => { active = false }, 25_000)
 
       const send = (data: unknown) => {
         try {
